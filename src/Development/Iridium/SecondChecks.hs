@@ -54,12 +54,20 @@ compile
      , MonadMultiReader Config m
      )
   => m ()
-compile = withStack "basic compilation" $ ignoreBool $ do
+compile = withStack "basic compilation" $ boolToError $ do
   fallbackCheck
-    (falseToConfirm $ runCheck "Checking basic compilation" (checks True))
+    (do
+      b <- runCheck "Checking basic compilation" (checks True)
+      unless b $ do
+        incWarningCounter
+        addNotWallClean "<default>"
+      return b
+    )
     (do
       pushLog LogLevelPrint "Falling back on compilation without warnings."
-      falseToAbort $ runCheck "Checking basic compilation -w" (checks False)
+      b <- runCheck "Checking basic compilation -w" (checks False)
+      unless b $ incErrorCounter
+      return b
     )
 
  where
@@ -72,12 +80,13 @@ compile = withStack "basic compilation" $ ignoreBool $ do
         mzeroToFalse $ do
           let testsArg = ["--enable-tests" | testsEnabled]
           let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
-          withStack "cabal clean"         $ runCommandSuccess "cabal" ["clean"]
-          withStack "cabal install --dep" $ runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
-          withStack "cabal configure"     $ runCommandSuccess "cabal" $ ["configure"] ++ testsArg ++ werrorArg
-          withStack "cabal build"         $ runCommandSuccess "cabal" ["build"]
+          runCommandSuccess "cabal" ["clean"]
+          runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
+          runCommandSuccess "cabal" $ ["configure"] ++ testsArg ++ werrorArg
+          runCommandSuccess "cabal" ["build"]
           when testsEnabled $
             runCommandSuccess "cabal" ["test"]
+          return True
       "stack" -> do
         pushLog LogLevelError "TODO: stack build"
         mzero
@@ -85,14 +94,14 @@ compile = withStack "basic compilation" $ ignoreBool $ do
 
 documentation
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Config m
      )
   => m ()
-documentation = ignoreBool
-              $ falseToConfirm
+documentation = boolToError
               $ runCheck "Checking documentation"
+              $ withStack "documentation check"
               $ do
   buildtool <- configReadStringM ["setup", "buildtool"]
   case buildtool of
@@ -104,8 +113,8 @@ documentation = ignoreBool
         runCommandSuccess "cabal" ["haddock"]
     "stack" -> do
       pushLog LogLevelError "TODO: stack build"
-      mzero
-    _ -> mzero
+      return False
+    _ -> error "lkajsdlkjasd"
 
 compileVersions
   :: forall m
@@ -126,17 +135,27 @@ compileVersions = withStack "compiler checks" $ do
         else pushLog LogLevelPrint "Checking compilation with different compiler versions"
       withIndentation $ do
         rawList <- configReadListM ["checks", "compiler-versions", "compilers"]
-        rawList `forM_` \val -> ignoreBool $ do
+        rawList `forM_` \val -> do
           let compilerStr = configReadString ["compiler"] val
                          ++ "-"
                          ++ configReadString ["version"] val
           let checkBaseName = "Checking with compiler " ++ compilerStr
           withStack compilerStr $
             fallbackCheck
-              (falseToConfirm $ runCheck checkBaseName $ checks compilerStr True)
+              (do
+                b <- runCheck checkBaseName $ checks compilerStr True
+                unless b $ do
+                  incWarningCounter
+                  addNotWallClean compilerStr
+                return b
+              )
               (do
                 pushLog LogLevelPrint "Falling back on compilation without warnings."
-                falseToAbort $ runCheck (checkBaseName ++ " -w") $ checks compilerStr False
+                do
+                  b <- runCheck (checkBaseName ++ " -w") $ checks compilerStr False
+                  unless b $ do
+                    incErrorCounter
+                  return b
               )
     where
       checks :: String -> Bool -> m Bool
@@ -149,23 +168,18 @@ compileVersions = withStack "compiler checks" $ do
               pushLog LogLevelError $ "Expected string in config for " ++ show confList
               mzero
             Just x -> return x
-          (if werror then mzeroToFalse else liftM (const True)) $ do
+          mzeroToFalse $ do
             let testsArg = ["--enable-tests" | testsEnabled]
             let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
-            withStack "cabal clean" $
-              runCommandSuccess "cabal" ["clean"]
-            withStack "cabal install --dep" $
-              runCommandSuccess "cabal" $ ["install", "--dep", "-w" ++ compilerPath]
-                                       ++ testsArg
-            withStack "cabal configure" $
-              runCommandSuccess "cabal" $ ["configure", "-w" ++ compilerPath]
-                                       ++ testsArg
-                                       ++ werrorArg
-            withStack "cabal build" $
-              runCommandSuccess "cabal" ["build"]
+            runCommandSuccess "cabal" ["clean"]
+            runCommandSuccess "cabal" $ ["install", "--dep", "-w" ++ compilerPath]
+                                     ++ testsArg
+            runCommandSuccess "cabal" $ ["configure", "-w" ++ compilerPath]
+                                     ++ testsArg
+                                     ++ werrorArg
+            runCommandSuccess "cabal" ["build"]
             when testsEnabled $
-              withStack "cabal test" $
-                runCommandSuccess "cabal" ["test"]
+              runCommandSuccess "cabal" ["test"]
         "stack" -> do
           pushLog LogLevelError "TODO: stack build"
           mzero

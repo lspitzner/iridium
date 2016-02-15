@@ -61,4 +61,6 @@ retrieveLatestVersion remoteUrl pkgName = do
         Nothing -> do
           pushLog LogLevelError "Error: Could not decode hackage response."
           mzero
-        Just s -> return s
+        Just s -> do
+          pushLog LogLevelInfoVerbose $ "got: " ++ s
+          return s

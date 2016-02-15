@@ -11,9 +11,11 @@ module Development.Iridium.Utils
   , mzeroToFalse
   , runCheck
   , fallbackCheck
-  , falseToConfirm
+  -- , falseToConfirm
   , falseToAbort
   , ignoreBool
+  , boolToWarning
+  , boolToError
   )
 where
 
@@ -37,6 +39,7 @@ import           Data.Tagged
 import           Control.Applicative
 import           Control.Monad
 import           Data.Functor
+import           Data.List
 
 -- well, no Turtle, apparently.
 -- no way to retrieve stdout, stderr and exitcode.
@@ -50,12 +53,12 @@ import qualified Filesystem.Path.CurrentOS as Path
 import           Development.Iridium.Types
 import           Development.Iridium.Logging
 import           Development.Iridium.Prompt
+import           Development.Iridium.CheckState
 
 
 
 runCheck
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
      )
   => String
@@ -95,31 +98,46 @@ askPackageVersion = do
 runCommandSuccess
   :: ( MonadIO m
      , MonadPlus m
+     , MonadMultiState CheckState m
      , MonadMultiState LogState m
      )
   => String
   -> [String]
   -> m ()
 runCommandSuccess c ps = do
-  pushLog LogLevelInfo $ "Calling " ++ show c ++ " " ++ show ps
-  (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode c ps ""
-  case exitCode of
-    Turtle.ExitSuccess -> return ()
-    Turtle.ExitFailure _ -> do
-      lines stdOut `forM_` \l ->
-        pushLog LogLevelPrint $ "  " ++ l
-      lines stdErr `forM_` \l ->
-        pushLog LogLevelPrint $ "  " ++ l
-      mzero
+  let infoStr = c ++ " " ++ intercalate " " ps
+  ignoreBool $ falseToAbort $ withStack infoStr $ do
+    (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode c ps ""
+    case exitCode of
+      Turtle.ExitSuccess   -> do
+        pushLog LogLevelInfo $ infoStr
+        return True
+      Turtle.ExitFailure _ -> do
+        -- this is redundant if..
+        pushLog LogLevelPrint infoStr
+        withIndentation $ do
+          lines stdOut `forM_` \l ->
+            pushLog LogLevelPrint $ l
+          lines stdErr `forM_` \l ->
+            pushLog LogLevelPrint $ l
+        logStack
+        return False
 
-mzeroToFalse :: MonadPlus m => m a -> m Bool
-mzeroToFalse m = liftM (const True) m `mplus` return False
+mzeroToFalse :: Monad m => MaybeT m a -> m Bool
+mzeroToFalse m = do
+  x <- runMaybeT m
+  case x of
+    Nothing -> return False
+    Just _  -> return True
 
-falseToConfirm
-  :: (MonadMultiState LogState m, MonadPlus m, MonadIO m) => m Bool -> m Bool
-falseToConfirm m = m >>= \x -> if x
-  then return True
-  else askConfirmationOrMZero >> return False
+-- mzeroToFalse :: MonadPlus m => m a -> m Bool
+-- mzeroToFalse m = liftM (const True) m `mplus` return False
+
+-- falseToConfirm
+--   :: (MonadMultiState LogState m, MonadPlus m, MonadIO m) => m Bool -> m Bool
+-- falseToConfirm m = m >>= \x -> if x
+--   then return True
+--   else askConfirmationOrMZero >> return False
 
 falseToAbort :: MonadPlus m => m Bool -> m Bool
 falseToAbort m = m >>= guard >> return True
@@ -133,3 +151,19 @@ fallbackCheck m1 m2 = do
 
 ignoreBool :: Monad m => m Bool -> m ()
 ignoreBool = liftM (const ())
+
+boolToWarning
+  :: ( MonadMultiState CheckState m )
+  => m Bool
+  -> m ()
+boolToWarning m = do
+  b <- m
+  unless b incWarningCounter
+
+boolToError
+  :: ( MonadMultiState CheckState m )
+  => m Bool
+  -> m ()
+boolToError m = do
+  b <- m
+  unless b incErrorCounter

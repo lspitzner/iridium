@@ -47,14 +47,17 @@ instance (MonadPlus m, Monad m) => MonadPlus (MultiRWST r w s m) where
 type Config = Yaml.Value
 
 data Infos = forall repo . Repo repo => Infos
-  { i_cwd            :: Path.FilePath
-  , i_package        :: GenericPackageDescription
-  , i_remote_version :: Maybe Version
-  , i_repo           :: Tagged repo (RepoInfo repo)
+  { _i_cwd            :: Path.FilePath
+  , _i_package        :: GenericPackageDescription
+  , _i_remote_version :: Maybe Version
+  , _i_repo           :: Tagged repo (RepoInfo repo)
   }
 
 data CheckState = CheckState
-  { check_stack :: [String]
+  { _check_stack :: [String]
+  , _check_errorCount :: Int
+  , _check_warningCount :: Int
+  , _check_notWallClean :: [String]
   }
 
 class Repo a where

@@ -6,6 +6,10 @@
 module Development.Iridium.CheckState
   ( initCheckState
   , withStack
+  , logStack
+  , incWarningCounter
+  , incErrorCounter
+  , addNotWallClean
   )
 where
 
@@ -47,7 +51,7 @@ import           Development.Iridium.Prompt
 
 
 initCheckState :: CheckState
-initCheckState = CheckState []
+initCheckState = CheckState [] 0 0 []
 
 withStack
   :: ( MonadIO m
@@ -59,8 +63,8 @@ withStack
   -> m a
 withStack s m = do
   s1 <- mGet
-  let newStack = s : check_stack s1
-  mSet $ s1 { check_stack = newStack }
+  let newStack = s : _check_stack s1
+  mSet $ s1 { _check_stack = newStack }
   id $ withoutIndentation
      $ writeCurLine
      $ take 60
@@ -69,5 +73,40 @@ withStack s m = do
      $ newStack
   r <- m
   s2 <- mGet
-  mSet $ s2 { check_stack = check_stack s1 }
+  mSet $ s2 { _check_stack = _check_stack s1 }
   return r
+
+logStack
+  :: ( MonadIO m
+     , MonadMultiState CheckState m
+     , MonadMultiState LogState m
+     )
+  => m ()
+logStack = do
+  s1 <- mGet
+  let line = "(stack: "
+          ++ intercalate ": " (reverse $ _check_stack s1)
+          ++ ")"
+  pushLog LogLevelPrint line
+
+incWarningCounter
+  :: ( MonadMultiState CheckState m )
+  => m ()
+incWarningCounter = do
+  s <- mGet
+  mSet $ s { _check_warningCount = _check_warningCount s + 1 }
+
+incErrorCounter
+  :: ( MonadMultiState CheckState m )
+  => m ()
+incErrorCounter = do
+  s <- mGet
+  mSet $ s { _check_warningCount = _check_warningCount s + 1 }
+
+addNotWallClean
+  :: ( MonadMultiState CheckState m )
+  => String
+  -> m ()
+addNotWallClean compStr = do
+  s <- mGet
+  mSet $ s { _check_notWallClean = compStr : _check_notWallClean s }

@@ -28,10 +28,12 @@ import           Control.Monad.Extra ( whenM )
 import           Control.Monad.Trans.MultiRWS
 import           Data.Proxy
 import           Data.Tagged
+import           Data.List
 
 import           Data.HList.ContainsType
 
-import           Data.Version ( showVersion )
+import           Data.Version ( showVersion, parseVersion )
+import           Text.ParserCombinators.ReadP
 import           Distribution.PackageDescription
 import           Distribution.PackageDescription.Parse
 import qualified Distribution.Package as Package
@@ -112,8 +114,13 @@ retrieveInfos = do
               $ packageDesc
   urlStr <- configReadStringM ["setup", "remote-server"]
   latestVersionStr <- retrieveLatestVersion urlStr pkgName
-  let latestVersionM = readMaybe latestVersionStr
-  -- pushLog LogLevelDebug $ show latestVersionM
+  let parseResults = readP_to_S parseVersion latestVersionStr
+  let latestVersionM = fmap fst
+                     $ flip find parseResults
+                     $ \r -> case r of
+        (_, "") -> True
+        _       -> False
+  pushLog LogLevelDebug $ show latestVersionM
   repoInfo :: Tagged NoRepo () <- repo_retrieveInfo 
   return $ Infos cwd packageDesc latestVersionM repoInfo
 
@@ -121,6 +128,7 @@ runFirstChecks
   :: ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Config m
      , MonadMultiReader Infos m
      )
@@ -137,21 +145,29 @@ displaySummary
   :: ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Config m
      , MonadMultiReader Infos m
      )
   => m ()
 displaySummary = do
   pushLog LogLevelPrint "Summary:"
-  Package.PackageName pNameStr <- askPackageName
-  pushLog LogLevelPrint $ "  Package:         " ++ pNameStr
-  pVersion <- askPackageVersion
-  pushLog LogLevelPrint $ "  Version:         " ++ showVersion pVersion
-  remoteServer <- configReadStringM ["setup", "remote-server"]
-  pushLog LogLevelPrint $ "  Remote location: " ++ remoteServer
-  Infos _ _ _ repoInfo <- mAsk
-  repo_displaySummary repoInfo
-  pushLog LogLevelPrint $ "  Actions:         " ++ "Upload package" -- TODO: documentation, repo stuff
+  withIndentation $ do
+    Package.PackageName pNameStr <- askPackageName
+    pushLog LogLevelPrint $ "Package:         " ++ pNameStr
+    pVersion <- askPackageVersion
+    pushLog LogLevelPrint $ "Version:         " ++ showVersion pVersion
+    remoteServer <- configReadStringM ["setup", "remote-server"]
+    pushLog LogLevelPrint $ "Remote location: " ++ remoteServer
+    do
+      CheckState _ errC warnC walls <- mGet
+      pushLog LogLevelPrint $ "Warning count:   " ++ show warnC
+      pushLog LogLevelPrint $ "Error   count:   " ++ show errC
+      pushLog LogLevelPrint $ "Not -Wall clean: " ++ intercalate ", " (reverse walls)
+    do
+      Infos _ _ _ repoInfo <- mAsk
+      repo_displaySummary repoInfo
+    pushLog LogLevelPrint $ "Actions:         " ++ "Upload package" -- TODO: documentation, repo stuff
   return ()
 
 askGlobalConfirmation
@@ -170,9 +186,10 @@ runSecondChecks
      , MonadPlus m0
      , ContainsType Config r
      , ContainsType LogState s
+     , ContainsType CheckState s
      )
   => m ()
-runSecondChecks = withMultiStateA initCheckState $ do
+runSecondChecks = do
   SecondChecks.compile
   whenM (configIsEnabledM ["checks", "compiler-versions"]) $ SecondChecks.compileVersions
   whenM (configIsEnabledM ["checks", "documentation"])     $ SecondChecks.documentation

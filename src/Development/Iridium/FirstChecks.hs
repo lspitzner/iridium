@@ -50,12 +50,13 @@ packageCheck
      , MonadPlus m
      , MonadMultiReader Config m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      )
   => m ()
 packageCheck = do
   buildtool <- configReadStringM ["setup", "buildtool"]
   case buildtool of
-    "cabal" -> ignoreBool $ falseToConfirm $ runCheck "Checking package validity" $ do
+    "cabal" -> boolToError $ runCheck "Checking package validity" $ do
       (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode
         "cabal"
         ["check"]
@@ -80,11 +81,11 @@ hlint
   :: ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Infos m
      )
   => m ()
-hlint = ignoreBool
-      $ falseToConfirm
+hlint = boolToWarning
       $ runCheck "Running hlint on hsSourceDirs"
       $ do
   buildInfos <- askAllBuildInfo
@@ -110,12 +111,12 @@ changelog
   :: ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Infos m
      , MonadMultiReader Config m
      )
   => m ()
-changelog = ignoreBool
-          $ falseToConfirm
+changelog = boolToWarning
           $ runCheck "Testing if the changelog mentions the latest version"
           $ do
   pathRaw <- configReadStringM ["checks", "changelog", "location"]
@@ -143,12 +144,12 @@ upperBounds
   :: ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Config m
      , MonadMultiReader Infos m
      )
   => m ()
-upperBounds = ignoreBool
-            $ falseToConfirm
+upperBounds = boolToWarning
             $ runCheck "Checking that all dependencies have upper bounds"
             $ do
   buildInfos <- askAllBuildInfo
@@ -174,18 +175,18 @@ upperBounds = ignoreBool
 
 remoteVersion
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Infos m
      )
   => m ()
-remoteVersion = ignoreBool
-              $ falseToConfirm
+remoteVersion = boolToError
               $ runCheck "Comparing local version to hackage version"
               $ do
   infos <- mAsk
   localVersion <- askPackageVersion
-  case i_remote_version infos of
+  -- pushLog LogLevelDebug $ show $ _i_remote_version infos
+  case _i_remote_version infos of
     Nothing -> return True
     Just remoteVers ->
       if localVersion == remoteVers
