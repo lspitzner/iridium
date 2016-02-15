@@ -34,9 +34,9 @@ main = do
                , LogLevelTrace
                , LogLevelWarn
                , LogLevelError
-               , LogLevelInfo
-               , LogLevelInfoVerbose
-               , LogLevelInfoSpam
+               -- , LogLevelInfo
+               -- , LogLevelInfoVerbose
+               -- , LogLevelInfoSpam
                , LogLevelThread
                ]
     config <- parseConfigs
@@ -57,7 +57,7 @@ main = do
         when (summaryConfirmConf=="after-checks") $ do
           displaySummary >> askGlobalConfirmation
         whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $
-          putLog LogLevelError $ "ACTUAL UPLOAD REALLY HAPPENING JUST NOW"
+          pushLog LogLevelError $ "ACTUAL UPLOAD REALLY HAPPENING JUST NOW"
       return ()
   -- runMultiRWSTNil_ $ withMultiState initialLogState $ do
   --   runCommandSuccess "cabal" ["clean"]

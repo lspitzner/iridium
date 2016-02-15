@@ -47,17 +47,17 @@ readConfFile
   => FilePath
   -> m (HM.HashMap Text Yaml.Value)
 readConfFile path = do
-  putLog LogLevelInfoVerbose $ "Reading config file " ++ encodeString path
+  pushLog LogLevelInfoVerbose $ "Reading config file " ++ encodeString path
   eitherValue <- liftIO $ Yaml.decodeFileEither $ encodeString path
   case eitherValue of
     Left e -> do
-      putLog LogLevelError $ "Error reading config file " ++ encodeString path
-      putLog LogLevelError $ show e
+      pushLog LogLevelError $ "Error reading config file " ++ encodeString path
+      pushLog LogLevelError $ show e
       mzero
     Right (Yaml.Object m) -> return m
     Right _ -> do
-      putLog LogLevelError $ "Error reading config file: expecting YAML object."
-      putLog LogLevelError $ "(Parsing was successful but returned something else,\nlike a list. or smth.)"
+      pushLog LogLevelError $ "Error reading config file: expecting YAML object."
+      pushLog LogLevelError $ "(Parsing was successful but returned something else,\nlike a list. or smth.)"
       mzero
 
 parseConfigs
@@ -67,7 +67,7 @@ parseConfigs
      )
   => m Yaml.Value
 parseConfigs = do
-  putLog LogLevelInfo "Reading config files.."
+  pushLog LogLevelInfo "Reading config files.."
 
   home <- Turtle.home
   cwd  <- Turtle.pwd
@@ -84,7 +84,7 @@ parseConfigs = do
     then readConfFile localConfPath
     else do
       defaultPath <- liftIO $ getDataFileName "default-iridium.yaml"
-      putLog LogLevelInfo $ "Creating default iridium.yaml."
+      pushLog LogLevelInfo $ "Creating default iridium.yaml."
       Turtle.cp (decodeString defaultPath) localConfPath
       readConfFile localConfPath
 
@@ -94,7 +94,7 @@ parseConfigs = do
                  $ lines
                  $ BSChar8.unpack
                  $ YamlPretty.encodePretty YamlPretty.defConfig final
-  putLog LogLevelInfoVerboser $ "Parsed config: \n" ++ displayStr
+  pushLog LogLevelInfoVerboser $ "Parsed config: \n" ++ displayStr
   return $ Yaml.Object final
 
 mergeConfigs :: Yaml.Value -> Yaml.Value -> Yaml.Value

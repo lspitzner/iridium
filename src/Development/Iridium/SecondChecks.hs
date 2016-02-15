@@ -40,6 +40,7 @@ import           Development.Iridium.Logging
 import           Development.Iridium.Config
 import           Development.Iridium.Prompt
 import           Development.Iridium.Utils
+import           Development.Iridium.CheckState
 
 
 
@@ -49,14 +50,15 @@ compile
    . ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Config m
      )
   => m ()
-compile = ignoreBool $ do
+compile = withStack "basic compilation" $ ignoreBool $ do
   fallbackCheck
     (falseToConfirm $ runCheck "Checking basic compilation" (checks True))
     (do
-      putLog LogLevelPrint "Falling back on compilation without warnings."
+      pushLog LogLevelPrint "Falling back on compilation without warnings."
       falseToAbort $ runCheck "Checking basic compilation -w" (checks False)
     )
 
@@ -70,14 +72,14 @@ compile = ignoreBool $ do
         mzeroToFalse $ do
           let testsArg = ["--enable-tests" | testsEnabled]
           let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
-          runCommandSuccess "cabal" ["clean"]
-          runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
-          runCommandSuccess "cabal" $ ["configure"] ++ testsArg ++ werrorArg
-          runCommandSuccess "cabal" ["build"]
+          withStack "cabal clean"         $ runCommandSuccess "cabal" ["clean"]
+          withStack "cabal install --dep" $ runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
+          withStack "cabal configure"     $ runCommandSuccess "cabal" $ ["configure"] ++ testsArg ++ werrorArg
+          withStack "cabal build"         $ runCommandSuccess "cabal" ["build"]
           when testsEnabled $
             runCommandSuccess "cabal" ["test"]
       "stack" -> do
-        putLog LogLevelError "TODO: stack build"
+        pushLog LogLevelError "TODO: stack build"
         mzero
       _ -> mzero
 
@@ -101,7 +103,7 @@ documentation = ignoreBool
         runCommandSuccess "cabal" ["configure"]
         runCommandSuccess "cabal" ["haddock"]
     "stack" -> do
-      putLog LogLevelError "TODO: stack build"
+      pushLog LogLevelError "TODO: stack build"
       mzero
     _ -> mzero
 
@@ -110,17 +112,18 @@ compileVersions
    . ( MonadIO m
      , MonadPlus m
      , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      , MonadMultiReader Config m
      )
   => m ()
-compileVersions = do
+compileVersions = withStack "compiler checks" $ do
   buildtool    <- configReadStringM ["setup", "buildtool"]
   testsEnabled <- configIsEnabledM ["checks", "testsuites"]
   case () of {
     () -> do
       if testsEnabled
-        then putLog LogLevelPrint "Checking compilation and tests with different compiler versions"
-        else putLog LogLevelPrint "Checking compilation with different compiler versions"
+        then pushLog LogLevelPrint "Checking compilation and tests with different compiler versions"
+        else pushLog LogLevelPrint "Checking compilation with different compiler versions"
       withIndentation $ do
         rawList <- configReadListM ["checks", "compiler-versions", "compilers"]
         rawList `forM_` \val -> ignoreBool $ do
@@ -128,12 +131,13 @@ compileVersions = do
                          ++ "-"
                          ++ configReadString ["version"] val
           let checkBaseName = "Checking with compiler " ++ compilerStr
-          fallbackCheck
-            (falseToConfirm $ runCheck checkBaseName $ checks compilerStr True)
-            (do
-              putLog LogLevelPrint "Falling back on compilation without warnings."
-              falseToAbort $ runCheck (checkBaseName ++ " -w") $ checks compilerStr False
-            )
+          withStack compilerStr $
+            fallbackCheck
+              (falseToConfirm $ runCheck checkBaseName $ checks compilerStr True)
+              (do
+                pushLog LogLevelPrint "Falling back on compilation without warnings."
+                falseToAbort $ runCheck (checkBaseName ++ " -w") $ checks compilerStr False
+              )
     where
       checks :: String -> Bool -> m Bool
       checks compilerStr werror = case buildtool of
@@ -142,23 +146,28 @@ compileVersions = do
           compilerPathMaybe <- configReadStringMaybeM confList
           compilerPath <- case compilerPathMaybe of
             Nothing -> do
-              putLog LogLevelError $ "Expected string in config for " ++ show confList
+              pushLog LogLevelError $ "Expected string in config for " ++ show confList
               mzero
             Just x -> return x
           (if werror then mzeroToFalse else liftM (const True)) $ do
             let testsArg = ["--enable-tests" | testsEnabled]
             let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
-            runCommandSuccess "cabal" ["clean"]
-            runCommandSuccess "cabal" $ ["install", "--dep", "-w" ++ compilerPath]
-                                     ++ testsArg
-            runCommandSuccess "cabal" $ ["configure", "-w" ++ compilerPath]
-                                     ++ testsArg
-                                     ++ werrorArg
-            runCommandSuccess "cabal" ["build"]
+            withStack "cabal clean" $
+              runCommandSuccess "cabal" ["clean"]
+            withStack "cabal install --dep" $
+              runCommandSuccess "cabal" $ ["install", "--dep", "-w" ++ compilerPath]
+                                       ++ testsArg
+            withStack "cabal configure" $
+              runCommandSuccess "cabal" $ ["configure", "-w" ++ compilerPath]
+                                       ++ testsArg
+                                       ++ werrorArg
+            withStack "cabal build" $
+              runCommandSuccess "cabal" ["build"]
             when testsEnabled $
-              runCommandSuccess "cabal" ["test"]
+              withStack "cabal test" $
+                runCommandSuccess "cabal" ["test"]
         "stack" -> do
-          putLog LogLevelError "TODO: stack build"
+          pushLog LogLevelError "TODO: stack build"
           mzero
         _ -> mzero
   }

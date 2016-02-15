@@ -30,21 +30,21 @@ retrieveLatestVersion
   => String -> String -> m String
 retrieveLatestVersion remoteUrl pkgName = do
   let urlStr :: String = remoteUrl ++ "/package/" ++ pkgName ++ "/preferred"
-  putLog LogLevelInfo $ "Looking up latest version from hackage via url " ++ urlStr
+  pushLog LogLevelInfo $ "Looking up latest version from hackage via url " ++ urlStr
   url <- case URI.parseURI urlStr of
     Nothing -> do
-      putLog LogLevelError "bad URI"
+      pushLog LogLevelError "bad URI"
       mzero
     Just u -> return u
   result <- liftIO $ HTTP.simpleHTTP (HTTP.mkRequest HTTP.GET url)
   rawHtml <- case result of
     Left _ -> do
-      putLog LogLevelError "Error: Could not retrieve hackage version"
+      pushLog LogLevelError "Error: Could not retrieve hackage version"
       mzero
     Right x -> return $ HTTP.rspBody x
   case Html.parseHTML "hackage:response" rawHtml of
     Left e -> do
-      putLog LogLevelError e
+      pushLog LogLevelError e
       mzero
     Right x -> do
       let mStr  = fmap (Text.unpack . Html.nodeText)
@@ -59,6 +59,6 @@ retrieveLatestVersion remoteUrl pkgName = do
                   )
       case mStr of
         Nothing -> do
-          putLog LogLevelError "Error: Could not decode hackage response."
+          pushLog LogLevelError "Error: Could not decode hackage response."
           mzero
         Just s -> return s

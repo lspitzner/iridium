@@ -1,7 +1,11 @@
 module Development.Iridium.Logging
   ( LogLevel (..)
   , setLogMask
-  , putLog
+  , pushLog
+  , pushLogPrepare
+  , pushLogFinalize
+  , writeCurLine
+  , pushCurLine
   , LogState
   , initialLogState
   , withIndentation
@@ -13,12 +17,13 @@ where
 
 import qualified System.Unsafe as Unsafe
 import           Data.IORef
-import           Control.Monad ( when )
+import           Control.Monad
 import           Control.Monad.IO.Class
 
 import           Control.Monad.Trans.MultiRWS
 
 import           System.Console.ANSI
+import           System.IO
 
 import           Development.Iridium.Types
 
@@ -92,8 +97,8 @@ withIndentation k = do
   s <- mGet
   mSet $ s { _log_indent = _log_indent s + 1 }
   r <- k
-  mSet s -- we do a full reset here. this might be evil.
-         -- but probably just the right thing to do.
+  s2 <- mGet
+  mSet $ s2 { _log_indent = _log_indent s }
   return r
 
 withoutIndentation
@@ -117,6 +122,28 @@ checkWhenLevel level m = do
   s <- mGet
   when (level `elem` _log_mask s) m
 
+getIndentLine
+  :: ( MonadMultiState LogState m )
+  => String
+  -> m String
+getIndentLine str = do
+  s <- mGet
+  return $ replicate (2*_log_indent s) ' ' ++ str
+
+flushPrepared
+  :: ( MonadIO m
+     , MonadMultiState LogState m
+     )
+  => m ()
+flushPrepared = do
+  s <- mGet
+  liftIO $ clearLine >> setCursorColumn 0 >> hFlush stdout
+  case _log_prepared s of
+    Nothing -> return ()
+    Just x -> do
+      liftIO $ putStrLn x
+      mSet $ s { _log_prepared = Nothing }
+
 pushLog
   :: ( MonadMultiState LogState m
      , MonadIO m
@@ -125,14 +152,9 @@ pushLog
   -> String
   -> m ()
 pushLog level message = checkWhenLevel level $ do
-  s <- mAsk
-  case _log_prepared s of
-    Nothing ->
-      -- clear current line
-      -- write message
-      -- newline
-      _
-    Just x -> _
+  flushPrepared
+  mess <- getIndentLine message
+  liftIO $ putStrLn mess
 
 pushLogPrepare
   :: ( MonadMultiState LogState m
@@ -140,11 +162,11 @@ pushLogPrepare
      )
   => String
   -> m ()
-pushLogPrepare = do
-  s <- mAsk
-  case _log_prepared s of
-    Nothing -> _
-    Just x  -> _
+pushLogPrepare message = do
+  s <- mGet
+  flushPrepared
+  mess <- getIndentLine message
+  mSet $ s { _log_prepared = Just mess }
 
 pushLogFinalize
   :: ( MonadMultiState LogState m
@@ -154,8 +176,19 @@ pushLogFinalize
   -> String
   -> m ()
 pushLogFinalize indent message = do
-  s <- mAsk
-  _
+  s <- mGet
+  liftIO $ clearLine >> setCursorColumn 0 >> hFlush stdout
+  case _log_prepared s of
+    Nothing -> do
+      liftIO $ putStrLn $ replicate indent ' ' ++ message
+    Just x -> do
+      liftIO $ if length x > indent
+        then do
+          putStrLn x
+          putStrLn $ replicate indent ' ' ++ message
+        else do
+          putStrLn $ x ++ replicate (indent - length x) ' ' ++ message
+      mSet $ s { _log_prepared = Nothing }
 
 writeCurLine
   :: ( MonadMultiState LogState m
@@ -164,15 +197,25 @@ writeCurLine
   => String
   -> m ()
 writeCurLine message = do
-  _
+  liftIO $ clearLine >> setCursorColumn 0
+  s <- mGet
+  imess <- getIndentLine message
+  liftIO $ putStr $ imess
+  liftIO $ hFlush stdout
+  mSet $ s { _log_cur = imess }
 
 pushCurLine
   :: ( MonadMultiState LogState m
      , MonadIO m
      )
-  => m ()
-pushCurLine = do
-  _
+  => LogLevel
+  -> m ()
+pushCurLine level = do
+  s <- mGet
+  if level `elem` _log_mask s
+    then liftIO $ putStrLn ""
+    else liftIO $ clearLine >> setCursorColumn 0 >> hFlush stdout
+  mSet $ s { _log_cur = "" }
 
 -- putLog
 --   :: ( MonadMultiState LogState m

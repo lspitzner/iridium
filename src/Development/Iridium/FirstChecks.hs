@@ -5,6 +5,7 @@ module Development.Iridium.FirstChecks
   , hlint
   , changelog
   , upperBounds
+  , remoteVersion
   )
 where
 
@@ -63,15 +64,15 @@ packageCheck = do
         Turtle.ExitSuccess -> return True
         Turtle.ExitFailure _ -> do
           lines stdOut `forM_` \l ->
-            putLog LogLevelPrint $ l
+            pushLog LogLevelPrint $ l
           lines stdErr `forM_` \l ->
-            putLog LogLevelPrint $ l
+            pushLog LogLevelPrint $ l
           return False  
     "stack" -> do
       -- stack has no "check".
       -- and no "upload --dry-run either."
-      putLog LogLevelWarn "stack has no `check` command!"
-      putLog LogLevelWarn "package validity could not be determined."
+      pushLog LogLevelWarn "stack has no `check` command!"
+      pushLog LogLevelWarn "package validity could not be determined."
       return ()
     _ -> error "bad config setup.buildtool"
 
@@ -87,9 +88,9 @@ hlint = ignoreBool
       $ runCheck "Running hlint on hsSourceDirs"
       $ do
   buildInfos <- askAllBuildInfo
-  -- putLog LogLevelDebug $ show buildInfos
+  -- pushLog LogLevelDebug $ show buildInfos
   let sourceDirs = nub $ buildInfos >>= hsSourceDirs
-  putLog LogLevelInfoVerboser $ "hsSourceDirs: " ++ show sourceDirs
+  pushLog LogLevelInfoVerboser $ "hsSourceDirs: " ++ show sourceDirs
   liftM and $ sourceDirs `forM` \path -> do
     (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode
       "hlint"
@@ -99,10 +100,10 @@ hlint = ignoreBool
       Turtle.ExitSuccess -> return True
       Turtle.ExitFailure _ -> do
         lines stdOut `forM_` \l ->
-          putLog LogLevelPrint $ l
+          pushLog LogLevelPrint $ l
         lines stdErr `forM_` \l ->
-          putLog LogLevelPrint $ l
-        putLog LogLevelInfoVerbose $ " `hlint " ++ path ++ "` failed."
+          pushLog LogLevelPrint $ l
+        pushLog LogLevelInfoVerbose $ " `hlint " ++ path ++ "` failed."
         return False  
 
 changelog
@@ -123,7 +124,7 @@ changelog = ignoreBool
   exists <- Turtle.testfile path
   if (not exists)
     then do
-      putLog LogLevelPrint $ "changelog file (" ++ show path ++ ") does not exist!"
+      pushLog LogLevelPrint $ "changelog file (" ++ show path ++ ") does not exist!"
       return False
     else do
       changelogContentLines <- Turtle.fold (Turtle.input path) Foldl.list
@@ -135,7 +136,7 @@ changelog = ignoreBool
       if any (Text.pack currentVersionStr `Text.isInfixOf`) changelogContentLines
         then return True
         else do
-          putLog LogLevelError $ "changelog does not contain " ++ currentVersionStr
+          pushLog LogLevelError $ "changelog does not contain " ++ currentVersionStr
           return False
 
 upperBounds
@@ -166,7 +167,37 @@ upperBounds = ignoreBool
   if null missingUpperBounds
     then return True
     else do
-      putLog LogLevelError $ "Found dependencies without upper bounds:"
+      pushLog LogLevelError $ "Found dependencies without upper bounds:"
       missingUpperBounds `forM_` \(Distribution.Package.PackageName n) ->
-        putLog LogLevelError $ "    " ++ n
+        pushLog LogLevelError $ "    " ++ n
       return False
+
+remoteVersion
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiState LogState m
+     , MonadMultiReader Infos m
+     )
+  => m ()
+remoteVersion = ignoreBool
+              $ falseToConfirm
+              $ runCheck "Comparing local version to hackage version"
+              $ do
+  infos <- mAsk
+  localVersion <- askPackageVersion
+  case i_remote_version infos of
+    Nothing -> return True
+    Just remoteVers ->
+      if localVersion == remoteVers
+        then do
+          pushLog LogLevelError $ "This package version (" ++ showVersion localVersion ++ ") is already on hackage; needs bump?"
+          return False
+        else if localVersion < remoteVers
+          then do
+            pushLog LogLevelWarn $ "The version on hackage ("
+                                ++ showVersion remoteVers
+                                ++ ") is greater than the local version ("
+                                ++ showVersion localVersion
+                                ++ ")."
+            return False
+          else return True

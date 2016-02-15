@@ -62,15 +62,16 @@ runCheck
   -> m Bool
   -> m Bool
 runCheck s m = do
-  putLog LogLevelPrint $ s ++ ":"
+  pushLogPrepare $ s ++ ":"
+  writeCurLine $ s ++ ":"
   r <- withIndentation m
   if r
     then do
-      withoutIndentation $ putLog LogLevelPrint $ ".." ++ replicate 70 ' ' ++ "clear."
+      pushLogFinalize 70 "clear."
       return True
     else do
-      withoutIndentation $ putLog LogLevelPrint $ ".." ++ replicate 70 ' ' ++ "failed."
-      putLog LogLevelPrint $ "(Latest: " ++ s ++ ")"
+      pushLogFinalize 70 "failed."
+      pushLog LogLevelPrint $ "(Latest: " ++ s ++ ")"
       return False
 
 askAllBuildInfo :: (MonadMultiReader Infos m) => m [BuildInfo]
@@ -100,15 +101,15 @@ runCommandSuccess
   -> [String]
   -> m ()
 runCommandSuccess c ps = do
-  putLog LogLevelInfo $ "Calling " ++ show c ++ " " ++ show ps
+  pushLog LogLevelInfo $ "Calling " ++ show c ++ " " ++ show ps
   (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode c ps ""
   case exitCode of
     Turtle.ExitSuccess -> return ()
     Turtle.ExitFailure _ -> do
       lines stdOut `forM_` \l ->
-        putLog LogLevelPrint $ "  " ++ l
+        pushLog LogLevelPrint $ "  " ++ l
       lines stdErr `forM_` \l ->
-        putLog LogLevelPrint $ "  " ++ l
+        pushLog LogLevelPrint $ "  " ++ l
       mzero
 
 mzeroToFalse :: MonadPlus m => m a -> m Bool

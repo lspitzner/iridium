@@ -33,6 +33,7 @@ library {
     Development.Iridium.Utils
     Development.Iridium.Hackage
     Development.Iridium.Prompt
+    Development.Iridium.CheckState
     Development.Iridium.FirstChecks
     Development.Iridium.SecondChecks
     Paths_iridium

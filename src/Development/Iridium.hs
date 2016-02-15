@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Development.Iridium
   ( initNote
@@ -28,6 +29,8 @@ import           Control.Monad.Trans.MultiRWS
 import           Data.Proxy
 import           Data.Tagged
 
+import           Data.HList.ContainsType
+
 import           Data.Version ( showVersion )
 import           Distribution.PackageDescription
 import           Distribution.PackageDescription.Parse
@@ -39,6 +42,7 @@ import           Development.Iridium.Logging
 import           Development.Iridium.Hackage
 import           Development.Iridium.Config
 import           Development.Iridium.Prompt
+import           Development.Iridium.CheckState
 import qualified Development.Iridium.FirstChecks  as FirstChecks
 import qualified Development.Iridium.SecondChecks as SecondChecks
 
@@ -85,21 +89,21 @@ retrieveInfos = do
       case cabalFiles of
         [f] -> return f
         [] -> do
-          putLog LogLevelError "Error: Found no cabal package!"
+          pushLog LogLevelError "Error: Found no cabal package!"
           mzero
         _ -> do
-          putLog LogLevelError "Error: Found more than one cabal package file!"
+          pushLog LogLevelError "Error: Found more than one cabal package file!"
           mzero
-    putLog LogLevelInfo $ "Reading cabal package description " ++ encodeString packageFile
+    pushLog LogLevelInfo $ "Reading cabal package description " ++ encodeString packageFile
     content <- Text.unlines `liftM` Turtle.fold (Turtle.input packageFile) Foldl.list
-    -- putLog LogLevelDebug $ Text.unpack content
+    -- pushLog LogLevelDebug $ Text.unpack content
     let parseResult = parsePackageDescription $ Text.unpack content
     case parseResult of
       ParseFailed e -> do
-        putLog LogLevelError $ "Error parsing cabal package file: " ++ show e
+        pushLog LogLevelError $ "Error parsing cabal package file: " ++ show e
         mzero
       ParseOk _ x -> do
-        -- putLog LogLevelDebug $ show $ packageDescription x
+        -- pushLog LogLevelDebug $ show $ packageDescription x
         return x
   let pkgName = (\(Package.PackageName n) -> n)
               $ Package.pkgName
@@ -109,7 +113,7 @@ retrieveInfos = do
   urlStr <- configReadStringM ["setup", "remote-server"]
   latestVersionStr <- retrieveLatestVersion urlStr pkgName
   let latestVersionM = readMaybe latestVersionStr
-  -- putLog LogLevelDebug $ show latestVersionM
+  -- pushLog LogLevelDebug $ show latestVersionM
   repoInfo :: Tagged NoRepo () <- repo_retrieveInfo 
   return $ Infos cwd packageDesc latestVersionM repoInfo
 
@@ -123,6 +127,7 @@ runFirstChecks
   => m ()
 runFirstChecks = do
   whenM (return True) {- consistency ! -}                     FirstChecks.packageCheck
+  whenM (return True) {- consistency ! -}                     FirstChecks.remoteVersion
   whenM (configIsEnabledM ["checks", "hlint"])                FirstChecks.hlint
   whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ FirstChecks.upperBounds
   whenM (configIsEnabledM ["checks", "changelog"]) $ FirstChecks.changelog
@@ -137,16 +142,16 @@ displaySummary
      )
   => m ()
 displaySummary = do
-  putLog LogLevelPrint "Summary:"
+  pushLog LogLevelPrint "Summary:"
   Package.PackageName pNameStr <- askPackageName
-  putLog LogLevelPrint $ "  Package:         " ++ pNameStr
+  pushLog LogLevelPrint $ "  Package:         " ++ pNameStr
   pVersion <- askPackageVersion
-  putLog LogLevelPrint $ "  Version:         " ++ showVersion pVersion
+  pushLog LogLevelPrint $ "  Version:         " ++ showVersion pVersion
   remoteServer <- configReadStringM ["setup", "remote-server"]
-  putLog LogLevelPrint $ "  Remote location: " ++ remoteServer
+  pushLog LogLevelPrint $ "  Remote location: " ++ remoteServer
   Infos _ _ _ repoInfo <- mAsk
   repo_displaySummary repoInfo
-  putLog LogLevelPrint $ "  Actions:         " ++ "Upload package" -- TODO: documentation, repo stuff
+  pushLog LogLevelPrint $ "  Actions:         " ++ "Upload package" -- TODO: documentation, repo stuff
   return ()
 
 askGlobalConfirmation
@@ -160,14 +165,15 @@ askGlobalConfirmation = do
     promptYesOrNo "Continue (<y>es; <n> aborts)"
 
 runSecondChecks
-  :: ( MonadIO m
-     , MonadPlus m
-     , MonadMultiState LogState m
-     , MonadMultiReader Config m
+  :: ( m ~ MultiRWST r w s m0
+     , MonadIO m0
+     , MonadPlus m0
+     , ContainsType Config r
+     , ContainsType LogState s
      )
   => m ()
-runSecondChecks = do
+runSecondChecks = withMultiStateA initCheckState $ do
   SecondChecks.compile
-  putLog LogLevelError "TODO second checks"
   whenM (configIsEnabledM ["checks", "compiler-versions"]) $ SecondChecks.compileVersions
   whenM (configIsEnabledM ["checks", "documentation"])     $ SecondChecks.documentation
+  pushLog LogLevelError "TODO second checks"

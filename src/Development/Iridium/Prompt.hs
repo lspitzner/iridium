@@ -45,7 +45,7 @@ askConfirmationOrMZero = do
   s <- liftIO $ getLine
   case s of
     "i" -> do
-      putLog LogLevelPrint "  (Remember that you can disable individual tests in iridium.yaml)"
+      pushLog LogLevelPrint "  (Remember that you can disable individual tests in iridium.yaml)"
       liftIO $ threadDelay 1000000
       return ()
     _   -> mzero

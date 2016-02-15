@@ -9,6 +9,7 @@ module Development.Iridium.Types
   , NoRepo (..)
   , Config
   , repoDisplaySummary
+  , CheckState (..)
   )
 where
 
@@ -50,6 +51,10 @@ data Infos = forall repo . Repo repo => Infos
   , i_package        :: GenericPackageDescription
   , i_remote_version :: Maybe Version
   , i_repo           :: Tagged repo (RepoInfo repo)
+  }
+
+data CheckState = CheckState
+  { check_stack :: [String]
   }
 
 class Repo a where
