@@ -1,0 +1,68 @@
+---
+setup:
+  buildtool: cabal # cabal | stack
+
+  # This currently only checks that uploads happen to that remote,
+  # it does not change the remote if a different one is configured.
+  # (because that would require modifying `.cabal/config`,)
+  remote-server: http://hackage.haskell.org
+
+process:
+  dry-run: False # only run all checks/tests, omit any side-effects/uploading
+
+  display-help: True
+
+  # build docs locally and upload them instead of trusting the
+  # docs builder which gets broken every two months.
+  # implies the documentation check.
+  upload-docs: True
+  
+  # "none":         just do the things, no final confirmation.
+  # "summary-only"  print summary but do not ask for confirmation
+  # "before-checks" print summary and ask for confirmation before running
+  #                 the more expensive checks.
+  # "after-checks"  print summary and ask for confirmation before after
+  #                 the checks, right before any side-effects.
+  summary-and-confirmation: after-checks
+
+checks:
+  hlint:
+    enabled: False
+  testsuites:
+    enabled: True
+    # whitelist: [only, these, tests]
+    # blacklist: [omit, these, tests]
+  upper-bounds-stackage:
+    # for existing upper bounds
+    enabled: False
+    use-nightly: False
+    # blacklist: [omit, check, for, these, packages]
+  upper-bounds-exist:
+    enabled: True
+  changelog:
+    enabled: True
+    location: changelog.md
+  compiler-versions:
+    enabled: True
+    compilers:
+      - compiler: ghc
+        version: 7.8.4
+      - compiler: ghc
+        version: 7.10.3
+  documentation:
+    enabled: True
+
+repository:
+  type: none # none | git
+  git:
+    display-current-branch: True
+    release-tag:
+      enabled: True
+      content: "v$VERSION"
+    push-remote:
+      # push the current branch (and the tag, if configured) to
+      # a remote repo.
+      enabled: False
+      # the "remote" configured in git to push the release/tag to.
+      # remote-name: "origin"
+...
