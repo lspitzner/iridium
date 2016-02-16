@@ -1,6 +1,6 @@
 ---
 setup:
-  buildtool: cabal # cabal | stack
+  buildtool: cabal # cannot be changed; stack is not supported (yet).
 
   # This currently only checks that uploads happen to that remote,
   # it does not change the remote if a different one is configured.
@@ -17,33 +17,34 @@ process:
   # implies the documentation check.
   upload-docs: True
   
-  # "none":         just do the things, no final confirmation.
-  # "summary-only"  print summary but do not ask for confirmation
-  # "before-checks" print summary and ask for confirmation before running
-  #                 the more expensive checks.
-  # "after-checks"  print summary and ask for confirmation before after
-  #                 the checks, right before any side-effects.
-  summary-and-confirmation: after-checks
+  print-summary: True
+
+  # confirm-always     always ask for confirmation.
+  # confirm-on-warning don't ask for confirmation if everything is clear.
+  # confirm-on-error   only ask for confirmation if there are errors.
+  confirmation: confirm-always
 
 checks:
   hlint:
     enabled: False
   testsuites:
     enabled: True
-    # whitelist: [only, these, tests]
-    # blacklist: [omit, these, tests]
+  compiler-warnings:
+    enabled: False
+    # whitelist: [only, these, tests] # not supported yet
+    # blacklist: [omit, these, tests] # not supported yet
   upper-bounds-stackage:
     # for existing upper bounds
     enabled: False
     use-nightly: False
-    # blacklist: [omit, check, for, these, packages]
+    # blacklist: [omit, check, for, these, packages] # not supported yet
   upper-bounds-exist:
     enabled: True
   changelog:
     enabled: True
     location: changelog.md
   compiler-versions:
-    enabled: True
+    enabled: False
     compilers:
       - compiler: ghc
         version: 7.8.4
@@ -53,6 +54,7 @@ checks:
     enabled: True
 
 repository:
+  # repository support is not implemented yet.
   type: none # none | git
   git:
     display-current-branch: True

@@ -5,10 +5,9 @@ module Development.Iridium
   ( initNote
   , helpString
   , retrieveInfos
-  , runFirstChecks
+  , runChecks
   , displaySummary
   , askGlobalConfirmation
-  , runSecondChecks
   )
 where
 
@@ -26,6 +25,7 @@ import           Control.Monad
 import           Text.Read ( readMaybe )
 import           Control.Monad.Extra ( whenM )
 import           Control.Monad.Trans.MultiRWS
+import           Control.Monad.Trans.Control
 import           Data.Proxy
 import           Data.Tagged
 import           Data.List
@@ -120,26 +120,32 @@ retrieveInfos = do
                      $ \r -> case r of
         (_, "") -> True
         _       -> False
-  pushLog LogLevelDebug $ show latestVersionM
+  pushLog LogLevelInfoVerbose $ "remote version: " ++ show (liftM showVersion latestVersionM)
   repoInfo :: Tagged NoRepo () <- repo_retrieveInfo 
   return $ Infos cwd packageDesc latestVersionM repoInfo
 
-runFirstChecks
-  :: ( MonadIO m
-     , MonadPlus m
-     , MonadMultiState LogState m
-     , MonadMultiState CheckState m
-     , MonadMultiReader Config m
-     , MonadMultiReader Infos m
+runChecks
+  :: ( m ~ MultiRWST r w s m0
+     , MonadIO m0
+     , MonadPlus m0
+     , MonadBaseControl IO m0
+     , ContainsType LogState s
+     , ContainsType CheckState s
+     , ContainsType Config r
+     , ContainsType Infos r
      )
   => m ()
-runFirstChecks = do
-  whenM (return True) {- consistency ! -}                     FirstChecks.packageCheck
-  whenM (return True) {- consistency ! -}                     FirstChecks.remoteVersion
+runChecks = do
+  whenM (configIsEnabledM ["checks", "compiler-versions"])  $ SecondChecks.compileVersions
+  SecondChecks.compile
+  whenM (configIsEnabledM ["checks", "documentation"])      $ SecondChecks.documentation
   whenM (configIsEnabledM ["checks", "hlint"])                FirstChecks.hlint
   whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ FirstChecks.upperBounds
-  whenM (configIsEnabledM ["checks", "changelog"]) $ FirstChecks.changelog
-  return ()
+  whenM (configIsEnabledM ["checks", "upper-bounds-stackage"]) $ SecondChecks.upperBoundsStackage
+  whenM (return True)                                         FirstChecks.packageCheck
+  whenM (configIsEnabledM ["checks", "changelog"])          $ FirstChecks.changelog
+  whenM (return True)                                         FirstChecks.remoteVersion
+  pushLog LogLevelError "TODO more checks"
 
 displaySummary
   :: ( MonadIO m
@@ -157,8 +163,10 @@ displaySummary = do
     pushLog LogLevelPrint $ "Package:         " ++ pNameStr
     pVersion <- askPackageVersion
     pushLog LogLevelPrint $ "Version:         " ++ showVersion pVersion
-    remoteServer <- configReadStringM ["setup", "remote-server"]
-    pushLog LogLevelPrint $ "Remote location: " ++ remoteServer
+    -- TODO: This should not be printed unless we verify that
+    --       the information is correct by looking at the .cabal config.
+    -- remoteServer <- configReadStringM ["setup", "remote-server"]
+    -- pushLog LogLevelPrint $ "Remote location: " ++ remoteServer
     do
       CheckState _ errC warnC walls <- mGet
       pushLog LogLevelPrint $ "Warning count:   " ++ show warnC
@@ -179,18 +187,3 @@ askGlobalConfirmation
 askGlobalConfirmation = do
   whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $
     promptYesOrNo "Continue (<y>es; <n> aborts)"
-
-runSecondChecks
-  :: ( m ~ MultiRWST r w s m0
-     , MonadIO m0
-     , MonadPlus m0
-     , ContainsType Config r
-     , ContainsType LogState s
-     , ContainsType CheckState s
-     )
-  => m ()
-runSecondChecks = do
-  SecondChecks.compile
-  whenM (configIsEnabledM ["checks", "compiler-versions"]) $ SecondChecks.compileVersions
-  whenM (configIsEnabledM ["checks", "documentation"])     $ SecondChecks.documentation
-  pushLog LogLevelError "TODO second checks"

@@ -24,6 +24,7 @@ import           Development.Iridium.Logging
 import           Development.Iridium.Types
 import           Development.Iridium.Utils
 import           Development.Iridium.CheckState
+import           Development.Iridium.Hackage
 
 import           Paths_iridium
 
@@ -76,21 +77,20 @@ main = do
     withMultiReader config $ do
       infos <- retrieveInfos
       withMultiReader infos $ withMultiStateA initCheckState $ do
-        summaryConfirmConf <- configReadStringM ["process", "summary-and-confirmation"]
-        case summaryConfirmConf of
-          "none"          -> return ()
-          "summary-only"  -> displaySummary
-          "before-checks" -> return ()
-          "after-checks"  -> return ()
-          _ -> error $ "bad config value " ++ summaryConfirmConf
-        runFirstChecks
-        when (summaryConfirmConf=="before-checks") $ do
-          displaySummary >> askGlobalConfirmation
-        runSecondChecks
-        when (summaryConfirmConf=="after-checks") $ do
-          displaySummary >> askGlobalConfirmation
-        whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $
-          pushLog LogLevelError $ "ACTUAL UPLOAD REALLY HAPPENING JUST NOW"
+        runChecks
+        displaySetting      <- configIsTrueM     ["process", "print-summary"]
+        confirmationSetting <- configReadStringM ["process", "confirmation"]
+        existWarnings <- liftM ((/=0) . _check_warningCount) mGet
+        existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
+        when displaySetting displaySummary
+        case confirmationSetting of
+          "confirm-always"     -> when (True                        ) askGlobalConfirmation
+          "confirm-on-warning" -> when (existWarnings || existErrors) askGlobalConfirmation
+          "confirm-on-error"   -> when (                 existErrors) askGlobalConfirmation
+          _ -> error $ "bad config value " ++ confirmationSetting
+        whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
+          uploadPackage
+          whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs            
       return ()
   -- runMultiRWSTNil_ $ withMultiState initialLogState $ do
   --   runCommandSuccess "cabal" ["clean"]

@@ -10,6 +10,7 @@ module Development.Iridium.CheckState
   , incWarningCounter
   , incErrorCounter
   , addNotWallClean
+  , replaceStackTop
   )
 where
 
@@ -67,7 +68,7 @@ withStack s m = do
   mSet $ s1 { _check_stack = newStack }
   id $ withoutIndentation
      $ writeCurLine
-     $ take 60
+     $ take 76
      $ intercalate ": "
      $ reverse
      $ newStack
@@ -75,6 +76,24 @@ withStack s m = do
   s2 <- mGet
   mSet $ s2 { _check_stack = _check_stack s1 }
   return r
+
+replaceStackTop
+  :: ( MonadIO m
+     , MonadMultiState LogState m
+     , MonadMultiState CheckState m
+     )
+  => String
+  -> m ()
+replaceStackTop s = do
+  s1 <- mGet
+  let newStack = s : drop 1 (_check_stack s1)
+  mSet s1 { _check_stack = newStack }
+  id $ withoutIndentation
+     $ writeCurLine
+     $ take 76
+     $ intercalate ": "
+     $ reverse
+     $ newStack
 
 logStack
   :: ( MonadIO m
@@ -101,7 +120,7 @@ incErrorCounter
   => m ()
 incErrorCounter = do
   s <- mGet
-  mSet $ s { _check_warningCount = _check_warningCount s + 1 }
+  mSet $ s { _check_errorCount = _check_errorCount s + 1 }
 
 addNotWallClean
   :: ( MonadMultiState CheckState m )

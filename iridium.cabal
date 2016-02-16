@@ -3,17 +3,36 @@
 
 name:                iridium
 version:             0.1.0.0
--- synopsis:            
--- description:         
+synopsis:            Automated Testing and Package Uploading
 license:             BSD3
 license-file:        LICENSE
 author:              Lennart Spitzner
 maintainer:          lsp@informatik.uni-kiel.de
--- copyright:           
+copyright:           Copyright (C) 2016 Lennart Spitzner
 category:            Development
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
+
+description: {
+  This executable aims to automate several typical steps when
+  uploading a new package version to hackage.
+  .
+  Steps currently include:
+  .
+  * Compilation and running tests using multiple ghc versions.
+  .
+  * Checking that the changelog mentions the latest version.
+  .
+  * Checking that the upper bounds of dependencies
+    are up-to-date by making use of stackage snapshots.
+  .
+  * Uploading of both the package itself and the documentation.
+  .
+  The program is configurable using a per-project .yaml file.
+  .
+  See the README for a setup guide.
+}
 
 
 
@@ -42,6 +61,7 @@ library {
   -- other-extensions:
   build-depends:
     { base >=4.7 && <4.9
+    , lifted-base
     , yaml
     , turtle
     , text
@@ -62,6 +82,8 @@ library {
     , process
     , vector
     , ansi-terminal
+    , transformers-base
+    , monad-control
     }
   hs-source-dirs: {
     src
@@ -71,8 +93,6 @@ library {
   }
   ghc-options: {
     -Wall
-    -Werror
-    -fprof-auto -fprof-cafs -fno-spec-constr
     -j
     -fno-warn-unused-imports
     -fno-warn-orphans
@@ -109,8 +129,6 @@ executable iridium {
   }
   ghc-options: {
     -Wall
-    -Werror
-    -fprof-auto -fprof-cafs -fno-spec-constr
     -j
     -fno-warn-unused-imports
     -fno-warn-orphans

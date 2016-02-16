@@ -47,7 +47,6 @@ import           Development.Iridium.Utils
 
 packageCheck
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiReader Config m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
@@ -79,7 +78,6 @@ packageCheck = do
 
 hlint
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
      , MonadMultiReader Infos m
@@ -109,7 +107,6 @@ hlint = boolToWarning
 
 changelog
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
      , MonadMultiReader Infos m
@@ -142,7 +139,6 @@ changelog = boolToWarning
 
 upperBounds
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
      , MonadMultiReader Config m

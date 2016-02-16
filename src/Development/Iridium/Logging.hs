@@ -200,7 +200,7 @@ writeCurLine message = do
   liftIO $ clearLine >> setCursorColumn 0
   s <- mGet
   imess <- getIndentLine message
-  liftIO $ putStr $ imess
+  liftIO $ putStr $ "> " ++ imess
   liftIO $ hFlush stdout
   mSet $ s { _log_cur = imess }
 

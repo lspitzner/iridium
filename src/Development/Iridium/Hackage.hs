@@ -1,5 +1,7 @@
 module Development.Iridium.Hackage
   ( retrieveLatestVersion
+  , uploadPackage
+  , uploadDocs
   )
 where
 
@@ -8,17 +10,24 @@ where
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Control.Monad ( mzero, when )
-import           Data.Maybe ( listToMaybe )
+import           Data.Maybe ( listToMaybe, maybeToList )
 import           Control.Monad.Trans.MultiRWS
 import           Control.Monad
+import           Data.Version
+import           Distribution.Package ( PackageName(..) )
+import qualified Turtle                 as Turtle
 
 import qualified Network.HTTP           as HTTP
 import qualified Text.XmlHtml           as Html
 import qualified Network.URI            as URI
 import qualified Data.Text              as Text
 
+import           System.Process hiding ( cwd )
+
 import           Development.Iridium.Logging
 import           Development.Iridium.Types
+import           Development.Iridium.Config
+import           Development.Iridium.Utils
 
 
 
@@ -64,3 +73,88 @@ retrieveLatestVersion remoteUrl pkgName = do
         Just s -> do
           pushLog LogLevelInfoVerbose $ "got: " ++ s
           return s
+
+uploadPackage
+  :: forall m
+   . ( MonadIO m
+     , MonadPlus m
+     , MonadMultiReader Config m
+     , MonadMultiReader Infos m
+     , MonadMultiState LogState m
+     )
+  => m ()
+uploadPackage = do
+  buildtool <- configReadStringM ["setup", "buildtool"]
+  pushLog LogLevelPrint "Performing upload.."
+  case buildtool of
+    "cabal" -> do
+      (PackageName pname) <- askPackageName
+      pvers <- askPackageVersion
+      username <- configReadStringMaybeM ["setup", "hackage", "username"]
+      password <- configReadStringMaybeM ["setup", "hackage", "password"]
+      let mzeroIfNonzero :: m Turtle.ExitCode -> m ()
+          mzeroIfNonzero k = do
+            r <- k
+            case r of
+              Turtle.ExitSuccess   -> return ()
+              Turtle.ExitFailure _ -> mzero
+
+      let filePath = "dist/" ++ pname ++ "-" ++ showVersion pvers ++ ".tar.gz"
+      mzeroIfNonzero $ liftIO $
+        runProcess "cabal" ["sdist"] Nothing Nothing Nothing Nothing Nothing
+        >>= waitForProcess
+      mzeroIfNonzero $ liftIO $
+        runProcess "cabal"
+                   ( [ "upload"
+                     , filePath
+                     ]
+                   ++ ["-u" ++ u | u <- maybeToList username]
+                   ++ ["-p" ++ p | p <- maybeToList password]
+                   )
+                   Nothing Nothing Nothing Nothing Nothing
+        >>= waitForProcess
+      pushLog LogLevelPrint "Upload successful."
+    "stack" -> do
+      pushLog LogLevelError "TODO: stack upload"
+      mzero
+    _ -> mzero
+
+uploadDocs
+  :: forall m
+   . ( MonadIO m
+     , MonadPlus m
+     , MonadMultiReader Config m
+     , MonadMultiReader Infos m
+     , MonadMultiState LogState m
+     )
+  => m ()
+uploadDocs = do
+  buildtool <- configReadStringM ["setup", "buildtool"]
+  pushLog LogLevelPrint "Performing doc upload.."
+  case buildtool of
+    "cabal" -> do
+      username <- configReadStringMaybeM ["setup", "hackage", "username"]
+      password <- configReadStringMaybeM ["setup", "hackage", "password"]
+      let mzeroIfNonzero :: m Turtle.ExitCode -> m ()
+          mzeroIfNonzero k = do
+            r <- k
+            case r of
+              Turtle.ExitSuccess   -> return ()
+              Turtle.ExitFailure _ -> mzero
+      mzeroIfNonzero $ liftIO $
+        runProcess "cabal"
+                   ( [ "upload"
+                     , "--doc"
+                     ]
+                   ++ ["-u" ++ u | u <- maybeToList username]
+                   ++ ["-p" ++ p | p <- maybeToList password]
+                   )
+                   Nothing Nothing Nothing Nothing Nothing
+        >>= waitForProcess
+      pushLog LogLevelPrint "Documentation upload successful."
+    "stack" -> do
+      pushLog LogLevelError "TODO: stack upload"
+      mzero
+    _ -> mzero
+
+
