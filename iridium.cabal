@@ -9,6 +9,8 @@ license-file:        LICENSE
 author:              Lennart Spitzner
 maintainer:          lsp@informatik.uni-kiel.de
 copyright:           Copyright (C) 2016 Lennart Spitzner
+Homepage:            https://github.com/lspitzner/iridium
+Bug-reports:         https://github.com/lspitzner/iridium/issues
 category:            Development
 build-type:          Simple
 extra-source-files:  ChangeLog.md
@@ -20,7 +22,7 @@ description: {
   .
   Steps currently include:
   .
-  * Compilation and running tests using multiple ghc versions.
+  * Compilation and running tests using multiple compiler versions.
   .
   * Checking that the changelog mentions the latest version.
   .

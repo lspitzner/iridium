@@ -178,7 +178,10 @@ displaySummary = do
     do
       Infos _ _ _ repoInfo <- mAsk
       repo_displaySummary repoInfo
-    pushLog LogLevelPrint $ "Actions:         " ++ "Upload package" -- TODO: documentation, repo stuff
+    uploadEnabled <- configIsTrueM ["process", "upload-docs"]
+    let actions = ["Upload package"]
+               ++ ["Upload documentation" | uploadEnabled]
+    pushLog LogLevelPrint $ "Actions:         " ++ intercalate ", " actions
   return ()
 
 askGlobalConfirmation
@@ -208,4 +211,4 @@ iridiumMain = do
       _ -> error $ "bad config value " ++ confirmationSetting
     whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
       uploadPackage
-      whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs            
+      whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs
