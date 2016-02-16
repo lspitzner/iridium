@@ -2,7 +2,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Development.Iridium
-  ( initNote
+  ( iridiumMain
+  , initNote
   , helpString
   , retrieveInfos
   , runChecks
@@ -29,6 +30,7 @@ import           Control.Monad.Trans.Control
 import           Data.Proxy
 import           Data.Tagged
 import           Data.List
+import           Data.HList.HList
 
 import           Data.HList.ContainsType
 
@@ -145,7 +147,6 @@ runChecks = do
   whenM (return True)                                         FirstChecks.packageCheck
   whenM (configIsEnabledM ["checks", "changelog"])          $ FirstChecks.changelog
   whenM (return True)                                         FirstChecks.remoteVersion
-  pushLog LogLevelError "TODO more checks"
 
 displaySummary
   :: ( MonadIO m
@@ -187,3 +188,22 @@ askGlobalConfirmation
 askGlobalConfirmation = do
   whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $
     promptYesOrNo "Continue (<y>es; <n> aborts)"
+
+iridiumMain :: MultiRWST '[Config] '[] '[LogState] (MaybeT IO) ()
+iridiumMain = do
+  infos <- retrieveInfos
+  withMultiReader infos $ withMultiStateA initCheckState $ do
+    runChecks
+    displaySetting      <- configIsTrueM     ["process", "print-summary"]
+    confirmationSetting <- configReadStringM ["process", "confirmation"]
+    existWarnings <- liftM ((/=0) . _check_warningCount) mGet
+    existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
+    when displaySetting displaySummary
+    case confirmationSetting of
+      "confirm-always"     -> when (True                        ) askGlobalConfirmation
+      "confirm-on-warning" -> when (existWarnings || existErrors) askGlobalConfirmation
+      "confirm-on-error"   -> when (                 existErrors) askGlobalConfirmation
+      _ -> error $ "bad config value " ++ confirmationSetting
+    whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
+      uploadPackage
+      whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs            

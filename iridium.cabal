@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                iridium
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            Automated Testing and Package Uploading
 license:             BSD3
 license-file:        LICENSE
@@ -43,6 +43,11 @@ data-files: {
   default-iridium.yaml
 }
 
+source-repository head {
+  type: git
+  location: git@github.com:lspitzner/iridium.git
+}
+
 library {
   exposed-modules: {
     Development.Iridium
@@ -61,29 +66,29 @@ library {
   -- other-extensions:
   build-depends:
     { base >=4.7 && <4.9
-    , lifted-base
-    , yaml
-    , turtle
-    , text
-    , containers
-    , unsafe
-    , transformers
-    , system-filepath
-    , unordered-containers
-    , multistate
-    , Cabal
-    , HTTP
-    , xmlhtml
-    , foldl
-    , bytestring
-    , network-uri
-    , tagged
-    , extra
-    , process
-    , vector
-    , ansi-terminal
-    , transformers-base
-    , monad-control
+    , lifted-base <0.3
+    , yaml <0.9
+    , turtle <1.3
+    , text <1.3
+    , containers <0.6
+    , unsafe <0.1
+    , transformers <0.5
+    , system-filepath <0.5
+    , unordered-containers <0.3
+    , multistate <0.7
+    , Cabal <1.23
+    , HTTP <4000.4
+    , xmlhtml <0.3
+    , foldl <1.2
+    , bytestring <0.11
+    , network-uri <2.7
+    , tagged <0.9
+    , extra <1.5
+    , process >= 1.2.2.0 && < 1.5
+    , vector <0.12
+    , ansi-terminal <0.7
+    , transformers-base <0.5
+    , monad-control <1.1
     }
   hs-source-dirs: {
     src
@@ -110,16 +115,11 @@ executable iridium {
     Main.hs
   }
   build-depends:
-    { base
+    { base >=4.7 && <4.9
     , iridium
-    , yaml
-    , turtle
-    , text
-    , containers
-    , unsafe
-    , transformers
-    , multistate
-    , extra
+    , transformers <0.5
+    , multistate <0.7
+    , extra <1.5
     }
   hs-source-dirs: {
     src-main

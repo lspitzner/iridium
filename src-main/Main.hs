@@ -12,7 +12,6 @@ import           Control.Monad.IO.Class
 
 import           Control.Monad
 import           Text.Read ( readMaybe )
-import           Control.Monad.Extra ( whenM )
 
 import qualified System.Environment
 import qualified System.Console.GetOpt as GetOpt
@@ -74,25 +73,5 @@ main = do
               ++ [ LogLevelInfoSpam    | verbosity > 2 ]
     setLogMask levels
     config <- parseConfigs
-    withMultiReader config $ do
-      infos <- retrieveInfos
-      withMultiReader infos $ withMultiStateA initCheckState $ do
-        runChecks
-        displaySetting      <- configIsTrueM     ["process", "print-summary"]
-        confirmationSetting <- configReadStringM ["process", "confirmation"]
-        existWarnings <- liftM ((/=0) . _check_warningCount) mGet
-        existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
-        when displaySetting displaySummary
-        case confirmationSetting of
-          "confirm-always"     -> when (True                        ) askGlobalConfirmation
-          "confirm-on-warning" -> when (existWarnings || existErrors) askGlobalConfirmation
-          "confirm-on-error"   -> when (                 existErrors) askGlobalConfirmation
-          _ -> error $ "bad config value " ++ confirmationSetting
-        whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
-          uploadPackage
-          whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs            
-      return ()
-  -- runMultiRWSTNil_ $ withMultiState initialLogState $ do
-  --   runCommandSuccess "cabal" ["clean"]
-  --   runCommandSuccess "cabal" ["configure"]
-  return ()    
+    withMultiReader config $ iridiumMain
+  return ()
