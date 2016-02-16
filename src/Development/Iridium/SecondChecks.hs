@@ -93,6 +93,7 @@ compile = withStack "basic compilation" $ boolToError $ do
         mzeroToFalse $ do
           let testsArg = ["--enable-tests" | testsEnabled]
           let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
+                       ++ ["--ghc-options=\"-w\"" | not werror]
           runCommandSuccess "cabal" ["clean"]
           runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
           runCommandSuccess "cabal" $ ["configure"] ++ testsArg ++ werrorArg
@@ -188,6 +189,7 @@ compileVersions = withStack "compiler checks" $ do
           mzeroToFalse $ do
             let testsArg = ["--enable-tests" | testsEnabled]
             let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
+                         ++ ["--ghc-options=\"-w\"" | not werror]
             runCommandSuccess "cabal" ["clean"]
             runCommandSuccess "cabal" $ ["install", "--dep", "-w" ++ compilerPath]
                                      ++ testsArg

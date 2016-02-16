@@ -139,11 +139,13 @@ runChecks
   => m ()
 runChecks = do
   whenM (configIsEnabledM ["checks", "compiler-versions"])  $ SecondChecks.compileVersions
-  SecondChecks.compile
+  whenM (configIsEnabledM ["checks", "upper-bounds-stackage"]) $ SecondChecks.upperBoundsStackage
   whenM (configIsEnabledM ["checks", "documentation"])      $ SecondChecks.documentation
+  -- we do this last so that we return in an "everything is compiled" state,
+  -- if possible.
+  SecondChecks.compile
   whenM (configIsEnabledM ["checks", "hlint"])                FirstChecks.hlint
   whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ FirstChecks.upperBounds
-  whenM (configIsEnabledM ["checks", "upper-bounds-stackage"]) $ SecondChecks.upperBoundsStackage
   whenM (return True)                                         FirstChecks.packageCheck
   whenM (configIsEnabledM ["checks", "changelog"])          $ FirstChecks.changelog
   whenM (return True)                                         FirstChecks.remoteVersion
@@ -187,7 +189,7 @@ askGlobalConfirmation
   => m ()
 askGlobalConfirmation = do
   whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $
-    promptYesOrNo "Continue (<y>es; <n> aborts)"
+    promptYesOrNo "Continue <y>es <n>o? "
 
 iridiumMain :: MultiRWST '[Config] '[] '[LogState] (MaybeT IO) ()
 iridiumMain = do
