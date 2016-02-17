@@ -66,18 +66,8 @@ packageCheck = do
   buildtool <- configReadStringM ["setup", "buildtool"]
   case buildtool of
     "cabal" -> boolToError $ runCheck "Checking package validity" $ do
-      (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode
-        "cabal"
-        ["check"]
-        ""
-      case exitCode of
-        Turtle.ExitSuccess -> return True
-        Turtle.ExitFailure _ -> do
-          lines stdOut `forM_` \l ->
-            pushLog LogLevelPrint $ l
-          lines stdErr `forM_` \l ->
-            pushLog LogLevelPrint $ l
-          return False  
+      mzeroToFalse $
+        runCommandSuccess "cabal" ["check"]
     "stack" -> do
       -- stack has no "check".
       -- and no "upload --dry-run either."
@@ -101,19 +91,8 @@ hlint = boolToWarning
   let sourceDirs = nub $ buildInfos >>= hsSourceDirs
   pushLog LogLevelInfoVerboser $ "hsSourceDirs: " ++ show sourceDirs
   liftM and $ sourceDirs `forM` \path -> do
-    (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode
-      "hlint"
-      [path]
-      ""
-    case exitCode of
-      Turtle.ExitSuccess -> return True
-      Turtle.ExitFailure _ -> do
-        lines stdOut `forM_` \l ->
-          pushLog LogLevelPrint $ l
-        lines stdErr `forM_` \l ->
-          pushLog LogLevelPrint $ l
-        pushLog LogLevelInfoVerbose $ " `hlint " ++ path ++ "` failed."
-        return False  
+    mzeroToFalse $
+      runCommandSuccess "hlint" [path]
 
 changelog
   :: ( MonadIO m

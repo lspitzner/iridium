@@ -118,32 +118,36 @@ runCommandSuccess
   => String
   -> [String]
   -> m ()
-runCommandSuccess c ps = do
+runCommandSuccess c ps = falseToMZero $ do
   let infoStr = c ++ " " ++ intercalate " " ps
-  withStack infoStr $ withStack "" $ do
-    -- this is evil, because we discard states down there.
-    -- but .. the alternative is somewhat complex ( to do right ).
-    s1 :: LogState   <- mGet
-    s2 :: CheckState <- mGet
+  withStack infoStr $ do
     outListRef <- liftIO $ newIORef []
+    exitCode <- withStack "" $ do -- the additional stack elem is for
+                                  -- output display stuff.
+      -- this is evil, because we discard states down there.
+      -- but .. the alternative is somewhat complex ( to do right ).
+      s1 :: LogState   <- mGet
+      s2 :: CheckState <- mGet
 
-    let handleLine l = runMultiStateTNil
-                     $ MultiState.withMultiStateA s1
-                     $ MultiState.withMultiStateA s2
-                     $ do
-          liftIO $ atomicModifyIORef outListRef (\x -> (l:x, ()))
-          replaceStackTop l
+      let handleLine l = runMultiStateTNil
+                       $ MultiState.withMultiStateA s1
+                       $ MultiState.withMultiStateA s2
+                       $ do
+            liftIO $ atomicModifyIORef outListRef (\x -> (l:x, ()))
+            replaceStackTop l
 
-    exitCode <- liftIO $ observeCreateProcessWithExitCode (proc c ps) "" handleLine handleLine
+      liftIO $ observeCreateProcessWithExitCode (proc c ps) "" handleLine handleLine
+    
     case exitCode of
       ExitSuccess -> do
         pushLog LogLevelInfo $ infoStr
+        return True
       ExitFailure _ -> do
         pushLog LogLevelPrint infoStr
         outLines <- liftIO $ readIORef outListRef
         reverse outLines `forM_` pushLog LogLevelPrint
         logStack
-        mzero    
+        return False    
     -- (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode c ps ""
     -- case exitCode of
     --   Turtle.ExitSuccess   -> do
@@ -164,6 +168,9 @@ mzeroToFalse m = do
   case x of
     Nothing -> return False
     Just _  -> return True
+
+falseToMZero :: MonadPlus m => m Bool -> m ()
+falseToMZero m = m >>= guard
 
 -- mzeroToFalse :: MonadPlus m => m a -> m Bool
 -- mzeroToFalse m = liftM (const True) m `mplus` return False

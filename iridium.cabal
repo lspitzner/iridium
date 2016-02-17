@@ -90,6 +90,7 @@ library {
     , ansi-terminal <0.7
     , transformers-base <0.5
     , monad-control <1.1
+    , split <0.3
     }
   hs-source-dirs: {
     src
