@@ -64,9 +64,10 @@ main = do
                  , LogLevelError
                  , LogLevelThread
                  ]
-              ++ [ LogLevelInfo        | verbosity > 0 ]
-              ++ [ LogLevelInfoVerbose | verbosity > 1 ]
-              ++ [ LogLevelInfoSpam    | verbosity > 2 ]
+              ++ [ LogLevelInfo         | verbosity > 0 ]
+              ++ [ LogLevelInfoVerbose  | verbosity > 1 ]
+              ++ [ LogLevelInfoVerboser | verbosity > 2 ]
+              ++ [ LogLevelInfoSpam     | verbosity > 3 ]
     setLogMask levels
     config <- parseConfigs
     withMultiReader config $ iridiumMain
