@@ -45,6 +45,10 @@ data-files: {
   default-iridium.yaml
 }
 
+extra-source-files: {
+  README.md
+}
+
 source-repository head {
   type: git
   location: git@github.com:lspitzner/iridium.git
