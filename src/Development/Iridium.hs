@@ -71,8 +71,10 @@ retrieveInfos = do
   when (cabalVersion < [1,22,8]) $ do
     pushLog LogLevelError "This program requires cabal version 1.22.8 or later. aborting."
     mzero
-  hlint <- configReadStringWithDefaultM "hlint" ["setup", "hlint-command"]
-  _ <- getExternalProgramVersion hlint
+  whenM (configIsEnabledM ["checks", "hlint"]) $ do
+    hlint <- configReadStringWithDefaultM "hlint" ["setup", "hlint-command"]
+    _ <- getExternalProgramVersion hlint
+    return ()
   cwd <- Turtle.pwd
   packageDesc <- do
     packageFile <- do
@@ -178,6 +180,7 @@ displaySummary = do
     uploadEnabled <- configIsTrueM ["process", "upload-docs"]
     let actions = ["Upload package"]
                ++ ["Upload documentation" | uploadEnabled]
+    pushLog LogLevelPrint ""
     pushLog LogLevelPrint $ "Actions:         " ++ intercalate ", " actions
   return ()
 
@@ -203,6 +206,7 @@ iridiumMain = do
     existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
     when displaySetting displaySummary
     whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
+      pushLog LogLevelPrint ""
       configDecideStringM ["process", "confirmation"]
         [ ("confirm-always"    , when (True                        ) $ askGlobalConfirmation existErrors)
         , ("confirm-on-warning", when (existWarnings || existErrors) $ askGlobalConfirmation existErrors)

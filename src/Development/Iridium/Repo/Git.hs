@@ -17,6 +17,7 @@ import           Development.Iridium.Utils
 import           Development.Iridium.ExternalProgWrappers
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Config
+import           Development.Iridium.CheckState
 
 
 
@@ -29,16 +30,19 @@ instance Repo GitImpl where
     branchStringRaw <- runCommandStdOut "git" ["branch"]
     case branchStringRaw of
       ('*':' ':branchName) ->
-        return $ GitImpl branchName
+        return $ GitImpl $ takeWhile (`notElem` "\n\r") branchName
       _ -> do
         pushLog LogLevelError "Could not parse current git branch name."
         mzero
-  repo_runChecks _git = do
-    uncommittedChangesCheck
+  repo_runChecks _git = withStack "[git]" $ do
+    pushLog LogLevelPrint "[git]"
+    withIndentation $ do
+      uncommittedChangesCheck
   repo_displaySummary git = do
     pushLog LogLevelPrint $ "[git]"
-    whenM (configIsTrueM ["repository", "git", "display-current-branch"]) $
-      pushLog LogLevelPrint $ "  Branch:        " ++ _git_branchName git
+    withIndentation $ do
+      whenM (configIsTrueM ["repository", "git", "display-current-branch"]) $
+        pushLog LogLevelPrint $ "Branch:        " ++ _git_branchName git
   repo_ActionSummary _git = do
     -- TODO
     return []
@@ -55,6 +59,7 @@ uncommittedChangesCheck
   => m ()
 uncommittedChangesCheck = boolToWarning
                         $ runCheck "Testing for uncommitted changes"
+                        $ withStack "git status -uno"
                         $ do
   changesRaw <- runCommandStdOut "git" ["status", "-uno", "--porcelain"]
   let changes = lines changesRaw
