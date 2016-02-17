@@ -35,7 +35,7 @@ import           Data.HList.ContainsType
 
 import           Data.Version ( showVersion, parseVersion )
 import           Text.ParserCombinators.ReadP
-import           Distribution.PackageDescription
+import qualified Distribution.PackageDescription as PackageDescription
 import           Distribution.PackageDescription.Parse
 import qualified Distribution.Package as Package
 
@@ -92,8 +92,8 @@ retrieveInfos = do
         return x
   let pkgName = (\(Package.PackageName n) -> n)
               $ Package.pkgName
-              $ package
-              $ packageDescription
+              $ PackageDescription.package
+              $ PackageDescription.packageDescription
               $ packageDesc
   urlStr <- configReadStringM ["setup", "remote-server"]
   latestVersionStr <- retrieveLatestVersion urlStr pkgName
@@ -104,8 +104,12 @@ retrieveInfos = do
         (_, "") -> True
         _       -> False
   pushLog LogLevelInfoVerbose $ "remote version: " ++ show (liftM showVersion latestVersionM)
-  repoInfo :: Tagged NoRepo () <- repo_retrieveInfo 
-  return $ Infos cwd packageDesc latestVersionM repoInfo
+  repoType <- configReadStringM ["repository", "type"]
+  case repoType of
+    "none" -> do
+      repoInfo :: NoRepo <- repo_retrieveInfo
+      return $ Infos cwd packageDesc latestVersionM repoInfo
+    _ -> error $ "bad confirmation value " ++ repoType
 
 runChecks
   :: ( m ~ MultiRWST r w s m0
@@ -130,6 +134,7 @@ runChecks = do
   whenM (return True)                                         Checks.packageCheck
   whenM (configIsEnabledM ["checks", "changelog"])          $ Checks.changelog
   whenM (return True)                                         Checks.remoteVersion
+  whenM (return True)                                         repoRunChecks
 
 displaySummary
   :: ( MonadIO m
@@ -157,8 +162,7 @@ displaySummary = do
       pushLog LogLevelPrint $ "Error   count:   " ++ show errC
       pushLog LogLevelPrint $ "Not -Wall clean: " ++ intercalate ", " (reverse walls)
     do
-      Infos _ _ _ repoInfo <- mAsk
-      repo_displaySummary repoInfo
+      repoDisplaySummary
     uploadEnabled <- configIsTrueM ["process", "upload-docs"]
     let actions = ["Upload package"]
                ++ ["Upload documentation" | uploadEnabled]
@@ -191,5 +195,6 @@ iridiumMain = do
       "confirm-on-error"   -> when (                 existErrors) askGlobalConfirmation
       _ -> error $ "bad config value " ++ confirmationSetting
     whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
+      repoPerformAction
       uploadPackage
       whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs

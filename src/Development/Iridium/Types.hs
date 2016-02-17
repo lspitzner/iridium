@@ -10,7 +10,10 @@ module Development.Iridium.Types
   , Repo (..)
   , NoRepo (..)
   , Config
+  , repoRunChecks
   , repoDisplaySummary
+  , repoActionSummary
+  , repoPerformAction
   , CheckState (..)
   )
 where
@@ -69,7 +72,7 @@ data Infos = forall repo . Repo repo => Infos
   { _i_cwd            :: Path.FilePath
   , _i_package        :: GenericPackageDescription
   , _i_remote_version :: Maybe Version
-  , _i_repo           :: Tagged repo (RepoInfo repo)
+  , _i_repo           :: repo
   }
 
 data CheckState = CheckState
@@ -80,40 +83,90 @@ data CheckState = CheckState
   }
 
 class Repo a where
-  type RepoInfo a :: *
+  -- | the action to retrieve/collect all the
+  --   data relevant for the later steps.
   repo_retrieveInfo   :: ( MonadIO m
                          , MonadPlus m
                          , MonadMultiReader Config m
                          )
-                      => m (Tagged a (RepoInfo a))
+                      => m a
+  -- | The checks to be run for this repo type
+  repo_runChecks      :: ( MonadIO m
+                         , MonadPlus m
+                         , MonadMultiReader Config m
+                         )
+                      => a -> m ()
+  -- | Summary of repository-type-specific information
+  --   to display to the user, e.g. "current branch: .."
   repo_displaySummary :: ( MonadIO m
                          , MonadMultiReader Config m
                          )
-                      => Tagged a (RepoInfo a)
+                      => a
                       -> m ()
-  repo_runChecks      :: ( MonadMultiReader Config m
-                         , MonadMultiReader (Tagged a (RepoInfo a)) m
-                         , m ~ t (MaybeT IO)
+  -- | (Configured) (repository-type-specific) actions
+  --   that will be taken, e.g. "Tag the current commit"
+  repo_ActionSummary  :: ( MonadMultiReader Config m
                          )
-                      => Proxy a -> m ()
+                      => a -> m [String]
+  -- | Perform repository-type-specific real side-effects.
+  --   This is post-confirmation by the user, but before
+  --   doing hackage upload.
+  repo_performAction  :: ( MonadIO m
+                         , MonadPlus m
+                         , MonadMultiReader Config m
+                         )
+                      => a -> m ()
+
+repoRunChecks
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiReader Infos m
+     , MonadMultiReader Config m
+     )
+  => m ()
+repoRunChecks = do
+  Infos _ _ _ repo <- mAsk
+  repo_runChecks repo
 
 repoDisplaySummary
-  :: ( MonadMultiReader Infos m
-     , m ~ MultiRWST r w s (MaybeT IO)
-     , ContainsType Config r
+  :: ( MonadIO m
+     , MonadMultiReader Infos m
+     , MonadMultiReader Config m
      )
   => m ()
 repoDisplaySummary = do
-  Infos _ _ _ taggedInfo <- mAsk
-  withMultiReader taggedInfo $ witnessProxy taggedInfo $ repo_runChecks
+  Infos _ _ _ repo <- mAsk
+  repo_displaySummary repo
 
-witnessProxy :: Tagged a b -> (Proxy a -> r) -> r
-witnessProxy _ f = f Proxy
+repoActionSummary
+  :: ( MonadIO m
+     , MonadMultiReader Infos m
+     , MonadMultiReader Config m
+     )
+  => m [String]
+repoActionSummary = do
+  Infos _ _ _ repo <- mAsk
+  repo_ActionSummary repo
 
-newtype NoRepo = NoRepo ()
+repoPerformAction
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiReader Infos m
+     , MonadMultiReader Config m
+     )
+  => m ()
+repoPerformAction = do
+  Infos _ _ _ repo <- mAsk
+  repo_performAction repo
+
+-- witnessProxy :: Tagged a b -> (Proxy a -> r) -> r
+-- witnessProxy _ f = f Proxy
+
+data NoRepo = NoRepo
 
 instance Repo NoRepo where
-  type RepoInfo NoRepo = ()
-  repo_retrieveInfo     = return $ Tagged ()
-  repo_displaySummary _ = return ()
+  repo_retrieveInfo     = return $ NoRepo
   repo_runChecks      _ = return ()
+  repo_displaySummary _ = return ()
+  repo_ActionSummary  _ = return []
+  repo_performAction  _ = return ()
