@@ -15,12 +15,13 @@ where
 
 
 
-import qualified Data.Text     as Text
-import qualified Data.Text.IO  as Text.IO
-import qualified Turtle        as Turtle
-import qualified Control.Foldl as Foldl
-import qualified Network.URI   as URI
-import qualified Network.HTTP  as HTTP
+import qualified Data.Text            as Text
+import qualified Data.Text.IO         as Text.IO
+import qualified Turtle               as Turtle
+import qualified Control.Foldl        as Foldl
+import qualified Network.HTTP.Conduit as HTTP
+import qualified Data.ByteString      as ByteString
+import qualified Data.ByteString.Lazy as ByteStringL
 
 import           Control.Exception.Lifted
 import           Control.Monad
@@ -35,6 +36,7 @@ import           Data.Text.Encoding
 import           Distribution.PackageDescription
 import           Data.Maybe ( maybeToList )
 import           Data.ByteString ( ByteString )
+import qualified Data.ByteString as ByteString
 import           Filesystem.Path.CurrentOS hiding ( null )
 
 import qualified Distribution.Package
@@ -343,8 +345,8 @@ compileVersions = withStack "compiler checks" $ do
 upperBoundsStackage
   :: forall m
    . ( MonadIO m
-     , MonadBaseControl IO m
      , MonadPlus m
+     , MonadBaseControl IO m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
      , MonadMultiReader Infos m
@@ -357,35 +359,58 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
     buildtool    <- configReadStringM ["setup", "buildtool"]
     testsEnabled <- configIsEnabledM  ["checks", "testsuites"]
     case buildtool of
-      "cabal" ->
-        mzeroToFalse $ do
+      "cabal" -> do
           cabalConfigPath       <- getLocalFilePath "cabal.config"
           cabalConfigBackupPath <- getLocalFilePath "cabal.config.backup"
           alreadyExists <- Turtle.testfile cabalConfigPath
-          let
-            act :: MaybeT m () = do
-              pushLog LogLevelInfo $ "Preparing cabal.config"
-              when alreadyExists $ do
-                pushLog LogLevelInfoVerbose $ "Renaming existing cabal.config to cabal.config.backup"
-                Turtle.mv cabalConfigPath cabalConfigBackupPath
-              useNightly <- configIsTrueM ["checks", "upper-bounds-stackage", "use-nightly"]
-              let urlStr = if useNightly
-                    then "http://www.stackage.org/nightly/cabal.config"
-                    else "http://www.stackage.org/lts/cabal.config"
-              cabalConfigContents <- fetchCabalConfig urlStr
-              pName <- liftM (Text.pack . (\(Distribution.Package.PackageName n) -> n)) askPackageName
-              let filteredLines = filter (pName `Text.isInfixOf`)
-                                $ Text.lines
-                                $ decodeUtf8 cabalConfigContents
-              liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
-              let testsArg = ["--enable-tests" | testsEnabled]
-              runCommandSuccessCabal ["clean"]
-              runCommandSuccessCabal $ ["install", "--dep"] ++ testsArg
-            fin = do
-              pushLog LogLevelInfo $ "Cleanup (cabal.config)"
-              when alreadyExists $ Turtle.mv cabalConfigBackupPath cabalConfigPath
-          act `finally` fin
-          return True
+          -- TODO: make this safe against ctrl-c again.
+          -- TODO: make sure the backup does not exist yet. (!)
+          pushLog LogLevelInfo $ "Preparing cabal.config"
+          when alreadyExists $ do
+            pushLog LogLevelInfoVerbose $ "Renaming existing cabal.config to cabal.config.backup"
+            Turtle.mv cabalConfigPath cabalConfigBackupPath
+          result <- mzeroToFalse $ do
+            useNightly <- configIsTrueM ["checks", "upper-bounds-stackage", "use-nightly"]
+            let urlStr = if useNightly
+                  then "http://www.stackage.org/nightly/cabal.config"
+                  else "http://www.stackage.org/lts/cabal.config"
+            cabalConfigContents <- fetchCabalConfig urlStr
+            pName <- liftM (Text.pack . (\(Distribution.Package.PackageName n) -> n)) askPackageName
+            let filteredLines = filter (not . (pName `Text.isInfixOf`))
+                              $ Text.lines
+                              $ decodeUtf8 cabalConfigContents
+            -- pushLog LogLevelDebug $ "Writing n lines to cabal.config: " ++ show (length filteredLines)
+            liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
+            let testsArg = ["--enable-tests" | testsEnabled]
+            runCommandSuccessCabal ["clean"]
+            runCommandSuccessCabal $ ["install", "--dep", "--force-reinstalls", "--dry-run"] ++ testsArg
+          pushLog LogLevelInfo $ "Cleanup (cabal.config)"
+          unless alreadyExists $ Turtle.rm cabalConfigPath
+          when alreadyExists $ Turtle.mv cabalConfigBackupPath cabalConfigPath
+          -- let
+          --   act :: MaybeT m () = do
+          --     pushLog LogLevelInfo $ "Preparing cabal.config"
+          --     when alreadyExists $ do
+          --       pushLog LogLevelInfoVerbose $ "Renaming existing cabal.config to cabal.config.backup"
+          --       Turtle.mv cabalConfigPath cabalConfigBackupPath
+          --     useNightly <- configIsTrueM ["checks", "upper-bounds-stackage", "use-nightly"]
+          --     let urlStr = if useNightly
+          --           then "http://www.stackage.org/nightly/cabal.config"
+          --           else "http://www.stackage.org/lts/cabal.config"
+          --     cabalConfigContents <- fetchCabalConfig urlStr
+          --     pName <- liftM (Text.pack . (\(Distribution.Package.PackageName n) -> n)) askPackageName
+          --     let filteredLines = filter (pName `Text.isInfixOf`)
+          --                       $ Text.lines
+          --                       $ decodeUtf8 cabalConfigContents
+          --     liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
+          --     let testsArg = ["--enable-tests" | testsEnabled]
+          --     runCommandSuccessCabal ["clean"]
+          --     runCommandSuccessCabal $ ["install", "--dep"] ++ testsArg
+          --   fin = do
+          --     pushLog LogLevelInfo $ "Cleanup (cabal.config)"
+          --     when alreadyExists $ Turtle.mv cabalConfigBackupPath cabalConfigPath
+          -- act `finally` fin
+          return result
       "stack" -> do
         pushLog LogLevelError "TODO: stack upper bound check"
         mzero
@@ -403,14 +428,21 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
     -> m0 ByteString
   fetchCabalConfig urlStr = do
     pushLog LogLevelInfoVerbose $ "Fetching up-to-date cabal.config from " ++ urlStr
-    url <- case URI.parseURI urlStr of
-      Nothing -> do
-        pushLog LogLevelError "bad URI"
-        mzero
-      Just u -> return u
-    result <- liftIO $ HTTP.simpleHTTP (HTTP.mkRequest HTTP.GET url)
-    case result of
-      Left _ -> do
-        pushLog LogLevelError "Error: Could not retrieve hackage version"
-        mzero
-      Right x -> return $ HTTP.rspBody x
+    -- TODO: exception handling
+    r <- HTTP.simpleHttp urlStr
+    return $ ByteString.concat $ ByteStringL.toChunks $ r
+    -- url <- case URI.parseURI urlStr of
+    --   Nothing -> do
+    --     pushLog LogLevelError "bad URI"
+    --     mzero
+    --   Just u -> return u
+    -- result <- liftIO $ HTTP.simpleHTTP (HTTP.mkRequest HTTP.GET url)
+    -- case result of
+    --   Left _ -> do
+    --     pushLog LogLevelError "Error: Could not retrieve hackage version"
+    --     mzero
+    --   Right x -> do
+    --     pushLog LogLevelInfoVerboser $ show x
+    --     let body = HTTP.rspBody x
+    --     pushLog LogLevelInfoVerbose $ "Retrieved " ++ show (ByteString.length body) ++ " bytes."
+    --     return $ body

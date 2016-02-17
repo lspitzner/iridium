@@ -80,11 +80,10 @@ library {
     , unordered-containers <0.3
     , multistate <0.7
     , Cabal <1.23
-    , HTTP <4000.4
+    , http-conduit <2.2
     , xmlhtml <0.3
     , foldl <1.2
     , bytestring <0.11
-    , network-uri <2.7
     , tagged <0.9
     , extra <1.5
     , process >= 1.2.2.0 && < 1.5

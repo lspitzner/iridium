@@ -49,6 +49,9 @@ checks:
     enabled: False
     # whitelist: [only, these, tests] # not supported yet
     # blacklist: [omit, these, tests] # not supported yet
+  # if you are completely unlucky, this might _overwrite_
+  # an existing cabal.config. if you press ctrl-c in exactly
+  # the right moment or something.
   upper-bounds-stackage:
     # for existing upper bounds
     enabled: False

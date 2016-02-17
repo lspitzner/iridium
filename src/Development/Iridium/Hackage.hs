@@ -17,9 +17,8 @@ import           Data.Version
 import           Distribution.Package ( PackageName(..) )
 import qualified Turtle                 as Turtle
 
-import qualified Network.HTTP           as HTTP
+import qualified Network.HTTP.Conduit   as HTTP
 import qualified Text.XmlHtml           as Html
-import qualified Network.URI            as URI
 import qualified Data.Text              as Text
 
 import           System.Process hiding ( cwd )
@@ -28,6 +27,9 @@ import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
 import           Development.Iridium.Config
 import           Development.Iridium.Utils
+
+import qualified Data.ByteString               as ByteString
+import qualified Data.ByteString.Lazy          as ByteStringL
 
 
 
@@ -40,18 +42,23 @@ retrieveLatestVersion
 retrieveLatestVersion remoteUrl pkgName = do
   let urlStr :: String = remoteUrl ++ "/package/" ++ pkgName ++ "/preferred"
   pushLog LogLevelInfo $ "Looking up latest version from hackage via url " ++ urlStr
-  url <- case URI.parseURI urlStr of
-    Nothing -> do
-      pushLog LogLevelError "bad URI"
-      mzero
-    Just u -> return u
-  result <- liftIO $ HTTP.simpleHTTP (HTTP.mkRequest HTTP.GET url)
-  rawHtml <- case result of
-    Left _ -> do
-      pushLog LogLevelError "Error: Could not retrieve hackage version"
-      mzero
-    Right x -> return $ HTTP.rspBody x
-  case Html.parseHTML "hackage:response" rawHtml of
+  -- url <- case URI.parseURI urlStr of
+  --   Nothing -> do
+  --     pushLog LogLevelError "bad URI"
+  --     mzero
+  --   Just u -> return u
+  -- result <- liftIO $ HTTP.simpleHTTP (HTTP.mkRequest HTTP.GET url)
+  -- rawHtml <- case result of
+  --   Left _ -> do
+  --     pushLog LogLevelError "Error: Could not retrieve hackage version"
+  --     mzero
+  --   Right x -> return $ HTTP.rspBody x
+
+  -- TODO: error handling
+  rawHtml <- HTTP.simpleHttp urlStr
+  case Html.parseHTML "hackage:response"
+     $ ByteString.concat
+     $ ByteStringL.toChunks rawHtml of
     Left e -> do
       pushLog LogLevelError e
       mzero
