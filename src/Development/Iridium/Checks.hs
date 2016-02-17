@@ -67,7 +67,7 @@ packageCheck = do
   case buildtool of
     "cabal" -> boolToError $ runCheck "Checking package validity" $ do
       mzeroToFalse $
-        runCommandSuccess "cabal" ["check"]
+        runCommandSuccessCabal ["check"]
     "stack" -> do
       -- stack has no "check".
       -- and no "upload --dry-run either."
@@ -78,9 +78,10 @@ packageCheck = do
 
 hlint
   :: ( MonadIO m
+     , MonadMultiReader Config m
+     , MonadMultiReader Infos m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
-     , MonadMultiReader Infos m
      )
   => m ()
 hlint = boolToWarning
@@ -92,7 +93,7 @@ hlint = boolToWarning
   pushLog LogLevelInfoVerboser $ "hsSourceDirs: " ++ show sourceDirs
   liftM and $ sourceDirs `forM` \path -> do
     mzeroToFalse $
-      runCommandSuccess "hlint" [path]
+      runCommandSuccessHLint [path]
 
 changelog
   :: ( MonadIO m
@@ -227,12 +228,12 @@ compile = withStack "basic compilation" $ boolToError $ do
           let testsArg = ["--enable-tests" | testsEnabled]
           let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
                        ++ ["--ghc-options=\"-w\"" | not werror]
-          runCommandSuccess "cabal" ["clean"]
-          runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
-          runCommandSuccess "cabal" $ ["configure"] ++ testsArg ++ werrorArg
-          runCommandSuccess "cabal" ["build"]
+          runCommandSuccessCabal ["clean"]
+          runCommandSuccessCabal $ ["install", "--dep"] ++ testsArg
+          runCommandSuccessCabal $ ["configure"] ++ testsArg ++ werrorArg
+          runCommandSuccessCabal ["build"]
           when testsEnabled $
-            runCommandSuccess "cabal" ["test"]
+            runCommandSuccessCabal ["test"]
           return True
       "stack" -> do
         pushLog LogLevelError "TODO: stack build"
@@ -254,10 +255,10 @@ documentation = boolToError
   case buildtool of
     "cabal" ->
       mzeroToFalse $ do
-        runCommandSuccess "cabal" ["clean"]
-        runCommandSuccess "cabal" ["install", "--dep"]
-        runCommandSuccess "cabal" ["configure"]
-        runCommandSuccess "cabal" ["haddock"]
+        runCommandSuccessCabal ["clean"]
+        runCommandSuccessCabal ["install", "--dep"]
+        runCommandSuccessCabal ["configure"]
+        runCommandSuccessCabal ["haddock"]
     "stack" -> do
       pushLog LogLevelError "TODO: stack build"
       return False
@@ -323,15 +324,15 @@ compileVersions = withStack "compiler checks" $ do
             let testsArg = ["--enable-tests" | testsEnabled]
             let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
                          ++ ["--ghc-options=\"-w\"" | not werror]
-            runCommandSuccess "cabal" ["clean"]
-            runCommandSuccess "cabal" $ ["install", "--dep", "-w" ++ compilerPath]
+            runCommandSuccessCabal ["clean"]
+            runCommandSuccessCabal $ ["install", "--dep", "-w" ++ compilerPath]
                                      ++ testsArg
-            runCommandSuccess "cabal" $ ["configure", "-w" ++ compilerPath]
+            runCommandSuccessCabal $ ["configure", "-w" ++ compilerPath]
                                      ++ testsArg
                                      ++ werrorArg
-            runCommandSuccess "cabal" ["build"]
+            runCommandSuccessCabal ["build"]
             when testsEnabled $
-              runCommandSuccess "cabal" ["test"]
+              runCommandSuccessCabal ["test"]
         "stack" -> do
           pushLog LogLevelError "TODO: stack build"
           mzero
@@ -377,8 +378,8 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
                                 $ decodeUtf8 cabalConfigContents
               liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
               let testsArg = ["--enable-tests" | testsEnabled]
-              runCommandSuccess "cabal" ["clean"]
-              runCommandSuccess "cabal" $ ["install", "--dep"] ++ testsArg
+              runCommandSuccessCabal ["clean"]
+              runCommandSuccessCabal $ ["install", "--dep"] ++ testsArg
             fin = do
               pushLog LogLevelInfo $ "Cleanup (cabal.config)"
               when alreadyExists $ Turtle.mv cabalConfigBackupPath cabalConfigPath

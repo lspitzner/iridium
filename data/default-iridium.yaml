@@ -15,6 +15,9 @@
 setup:
   buildtool: cabal # cannot be changed; stack is not supported (yet).
 
+  # cabal-command: cabal
+  # hlint-command: $HOME/.cabal/bin/hlint
+
   # This currently only checks that uploads happen to that remote,
   # it does not change the remote if a different one is configured.
   # (because that would require modifying `.cabal/config`,)

@@ -20,6 +20,9 @@ module Development.Iridium.Utils
   , getLocalFilePath
   , observeCreateProcessWithExitCode
   , getExternalProgramVersion
+  , readShellProcessWithExitCode
+  , runCommandSuccessCabal
+  , runCommandSuccessHLint
   )
 where
 
@@ -74,6 +77,7 @@ import           Development.Iridium.Types
 import           Development.Iridium.UI.Console
 import           Development.Iridium.UI.Prompt
 import           Development.Iridium.CheckState
+import           Development.Iridium.Config
 
 
 
@@ -115,6 +119,15 @@ askPackageVersion = do
   Infos _ pDesc _ _ <- mAsk
   return $ pkgVersion $ package $ packageDescription pDesc
 
+readShellProcessWithExitCode
+  :: String
+  -> [String]
+  -> IO (ExitCode, String, String)
+readShellProcessWithExitCode c ps =
+  readCreateProcessWithExitCode
+    (shell $ c ++ " " ++ intercalate " " (fmap show ps))
+    ""
+
 runCommandSuccess
   :: ( MonadIO m
      , MonadPlus m
@@ -142,7 +155,11 @@ runCommandSuccess c ps = falseToMZero $ do
             liftIO $ atomicModifyIORef outListRef (\x -> (l:x, ()))
             replaceStackTop l
 
-      liftIO $ observeCreateProcessWithExitCode (proc c ps) "" handleLine handleLine
+      liftIO $ observeCreateProcessWithExitCode
+        (shell $ c ++ " " ++ intercalate " " (fmap show ps))
+        ""
+        handleLine
+        handleLine
     
     case exitCode of
       ExitSuccess -> do
@@ -154,19 +171,32 @@ runCommandSuccess c ps = falseToMZero $ do
         reverse outLines `forM_` pushLog LogLevelPrint
         logStack
         return False    
-    -- (exitCode, stdOut, stdErr) <- liftIO $ readProcessWithExitCode c ps ""
-    -- case exitCode of
-    --   Turtle.ExitSuccess   -> do
-    --     pushLog LogLevelInfo $ infoStr
-    --   Turtle.ExitFailure _ -> do
-    --     pushLog LogLevelPrint infoStr
-    --     withIndentation $ do
-    --       lines stdOut `forM_` \l ->
-    --         pushLog LogLevelPrint $ l
-    --       lines stdErr `forM_` \l ->
-    --         pushLog LogLevelPrint $ l
-    --     logStack
-    --     mzero
+
+runCommandSuccessCabal
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiState CheckState m
+     , MonadMultiState LogState m
+     , MonadMultiReader Config m
+     )
+  => [String]
+  -> m ()
+runCommandSuccessCabal ps = do
+  cabalInvoc <- configReadStringWithDefaultM "cabal" ["setup", "cabal-command"]
+  runCommandSuccess cabalInvoc ps
+
+runCommandSuccessHLint
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiState CheckState m
+     , MonadMultiState LogState m
+     , MonadMultiReader Config m
+     )
+  => [String]
+  -> m ()
+runCommandSuccessHLint ps = do
+  hlintInvoc <- configReadStringWithDefaultM "hlint" ["setup", "hlint-command"]
+  runCommandSuccess hlintInvoc ps
 
 mzeroToFalse :: Monad m => MaybeT m a -> m Bool
 mzeroToFalse m = do
@@ -238,7 +268,7 @@ runCommandStdOut
 runCommandStdOut c ps = do
   let infoStr = c ++ " " ++ intercalate " " ps
   (exitCode, stdOut, _stdErr) <- liftIO $
-    Process.readProcessWithExitCode c ps ""
+    readShellProcessWithExitCode c ps
   case exitCode of
     ExitFailure _ -> do
       pushLog LogLevelError $ "Error running command `" ++ infoStr ++ "`."
@@ -258,7 +288,7 @@ getExternalProgramVersion prog = do
         pushLog LogLevelError $ "Could not determine version of external program " ++ prog
         mzero
   (exitCode, stdOut, _stdErr) <- liftIO $
-    Process.readProcessWithExitCode prog ["--version"] ""
+    readShellProcessWithExitCode prog ["--version"]
   case exitCode of
     ExitSuccess -> do
       case lines stdOut of

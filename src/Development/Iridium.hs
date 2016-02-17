@@ -65,10 +65,13 @@ retrieveInfos
      )
   => m Infos
 retrieveInfos = do
-  cabalVersion <- getExternalProgramVersion "cabal"
+  cabalInvoc <- configReadStringWithDefaultM "cabal" ["setup", "cabal-command"]
+  cabalVersion <- getExternalProgramVersion cabalInvoc
   when (cabalVersion < [1,22,8]) $ do
     pushLog LogLevelError "This program requires cabal version 1.22.8 or later. aborting."
     mzero
+  hlint <- configReadStringWithDefaultM "hlint" ["setup", "hlint-command"]
+  _ <- getExternalProgramVersion hlint
   cwd <- Turtle.pwd
   packageDesc <- do
     packageFile <- do
