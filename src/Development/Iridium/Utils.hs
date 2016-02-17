@@ -65,8 +65,8 @@ import           Data.Maybe ( maybeToList )
 import qualified Filesystem.Path.CurrentOS as Path
 
 import           Development.Iridium.Types
-import           Development.Iridium.Logging
-import           Development.Iridium.Prompt
+import           Development.Iridium.UI.Console
+import           Development.Iridium.UI.Prompt
 import           Development.Iridium.CheckState
 
 

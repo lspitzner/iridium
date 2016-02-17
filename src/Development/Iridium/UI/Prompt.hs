@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Development.Iridium.Prompt
+module Development.Iridium.UI.Prompt
   ( askConfirmationOrMZero
   , promptYesOrNo
   )
@@ -19,7 +19,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad
 
 import           Development.Iridium.Types
-import           Development.Iridium.Logging
+import           Development.Iridium.UI.Console
 import           Development.Iridium.Config
 
 import           Control.Monad.Trans.MultiRWS

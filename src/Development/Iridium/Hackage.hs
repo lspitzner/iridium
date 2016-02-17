@@ -24,7 +24,7 @@ import qualified Data.Text              as Text
 
 import           System.Process hiding ( cwd )
 
-import           Development.Iridium.Logging
+import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
 import           Development.Iridium.Config
 import           Development.Iridium.Utils

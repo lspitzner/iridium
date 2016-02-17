@@ -52,16 +52,15 @@ source-repository head {
 
 library {
   exposed-modules: {
-    Development.Iridium
-    Development.Iridium.Config
-    Development.Iridium.Logging
     Development.Iridium.Types
     Development.Iridium.Utils
+    Development.Iridium.UI.Console
+    Development.Iridium.UI.Prompt
+    Development.Iridium.Config
     Development.Iridium.Hackage
-    Development.Iridium.Prompt
     Development.Iridium.CheckState
-    Development.Iridium.FirstChecks
-    Development.Iridium.SecondChecks
+    Development.Iridium.Checks
+    Development.Iridium
     Paths_iridium
   }
   -- other-modules:

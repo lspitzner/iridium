@@ -33,7 +33,7 @@ import           Data.Text ( Text )
 import           Control.Monad
 import           Data.Monoid
 
-import           Development.Iridium.Logging
+import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
 import           Paths_iridium
 

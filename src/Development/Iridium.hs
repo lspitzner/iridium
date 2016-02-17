@@ -4,7 +4,6 @@
 module Development.Iridium
   ( iridiumMain
   , initNote
-  , helpString
   , retrieveInfos
   , runChecks
   , displaySummary
@@ -42,13 +41,12 @@ import qualified Distribution.Package as Package
 
 import           Development.Iridium.Types
 import           Development.Iridium.Utils
-import           Development.Iridium.Logging
+import           Development.Iridium.UI.Console
 import           Development.Iridium.Hackage
 import           Development.Iridium.Config
-import           Development.Iridium.Prompt
+import           Development.Iridium.UI.Prompt
 import           Development.Iridium.CheckState
-import qualified Development.Iridium.FirstChecks  as FirstChecks
-import qualified Development.Iridium.SecondChecks as SecondChecks
+import qualified Development.Iridium.Checks  as Checks
 
 import           Filesystem.Path.CurrentOS
 
@@ -57,23 +55,6 @@ import           Filesystem.Path.CurrentOS
 initNote :: String
 initNote
   = "iridium - automated cabal package uploading utility"
-
-helpString :: String
-helpString
-  = unlines
-  $ [ "iridium includes the following steps:"
-    , "1)  Run sanity checks, ask for confirmation if somethings"
-    , "    seems suspicious."
-    , "2a) Print summary and ask for confirmation (as configured)"
-    , "3)  Run all configured checks (this may take a moment)."
-    , "2b) Print summary and ask for confirmation (as configured)"
-    , "4)  If enabled, tag the commit and upload to remote repository"
-    , "5)  Upload the package to hackage"
-    , "    (and, if enabled, the docs)."
-    , ""
-    , "By default, you will be asked a final time before any side-effects"
-    , "(uploading) are performed."
-    ]
 
 retrieveInfos
   :: ( MonadIO m
@@ -138,17 +119,17 @@ runChecks
      )
   => m ()
 runChecks = do
-  whenM (configIsEnabledM ["checks", "compiler-versions"])  $ SecondChecks.compileVersions
-  whenM (configIsEnabledM ["checks", "upper-bounds-stackage"]) $ SecondChecks.upperBoundsStackage
-  whenM (configIsEnabledM ["checks", "documentation"])      $ SecondChecks.documentation
+  whenM (configIsEnabledM ["checks", "compiler-versions"])  $ Checks.compileVersions
+  whenM (configIsEnabledM ["checks", "upper-bounds-stackage"]) $ Checks.upperBoundsStackage
+  whenM (configIsEnabledM ["checks", "documentation"])      $ Checks.documentation
   -- we do this last so that we return in an "everything is compiled" state,
   -- if possible.
-  SecondChecks.compile
-  whenM (configIsEnabledM ["checks", "hlint"])                FirstChecks.hlint
-  whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ FirstChecks.upperBounds
-  whenM (return True)                                         FirstChecks.packageCheck
-  whenM (configIsEnabledM ["checks", "changelog"])          $ FirstChecks.changelog
-  whenM (return True)                                         FirstChecks.remoteVersion
+  Checks.compile
+  whenM (configIsEnabledM ["checks", "hlint"])                Checks.hlint
+  whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ Checks.upperBounds
+  whenM (return True)                                         Checks.packageCheck
+  whenM (configIsEnabledM ["checks", "changelog"])          $ Checks.changelog
+  whenM (return True)                                         Checks.remoteVersion
 
 displaySummary
   :: ( MonadIO m

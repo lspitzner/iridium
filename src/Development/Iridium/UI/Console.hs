@@ -1,4 +1,4 @@
-module Development.Iridium.Logging
+module Development.Iridium.UI.Console
   ( LogLevel (..)
   , setLogMask
   , pushLog

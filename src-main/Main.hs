@@ -11,7 +11,6 @@ import           Data.HList.HList
 import           Control.Monad.IO.Class
 
 import           Control.Monad
-import           Text.Read ( readMaybe )
 
 import qualified System.Environment
 import qualified System.Console.GetOpt as GetOpt
@@ -19,11 +18,8 @@ import           Data.Version ( showVersion )
 
 import           Development.Iridium
 import           Development.Iridium.Config
-import           Development.Iridium.Logging
+import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
-import           Development.Iridium.Utils
-import           Development.Iridium.CheckState
-import           Development.Iridium.Hackage
 
 import           Paths_iridium
 
