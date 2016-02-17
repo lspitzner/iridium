@@ -54,13 +54,13 @@ checks:
     enabled: True
 
 repository:
-  type: none # none | git
+  type: git # none | git
   git:
     display-current-branch: True
-    release-tag:
+    release-tag: # NOT YET SUPPORTED !
       enabled: True
       content: "v$VERSION"
-    push-remote:
+    push-remote: # NOT YET SUPPORTED !
       # push the current branch (and the tag, if configured) to
       # a remote repo.
       enabled: False

@@ -8,6 +8,7 @@ module Development.Iridium.Utils
   , askPackageName
   , askPackageVersion
   , runCommandSuccess
+  , runCommandStdOut
   , mzeroToFalse
   , runCheck
   , fallbackCheck
@@ -18,6 +19,7 @@ module Development.Iridium.Utils
   , boolToError
   , getLocalFilePath
   , observeCreateProcessWithExitCode
+  , getExternalProgramVersion
   )
 where
 
@@ -54,6 +56,10 @@ import           GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..
 import           Foreign.C
 import           System.Process.Internals
 import           Data.IORef
+import qualified Data.List.Split as Split
+import qualified System.Process as Process
+import qualified Data.Char as Char
+import           Text.Read ( readMaybe )
 
 -- well, no Turtle, apparently.
 -- no way to retrieve stdout, stderr and exitcode.
@@ -202,6 +208,7 @@ boolToWarning m = do
   b <- m
   unless b incWarningCounter
 
+
 boolToError
   :: ( MonadMultiState CheckState m )
   => m Bool
@@ -210,6 +217,7 @@ boolToError m = do
   b <- m
   unless b incErrorCounter
 
+
 getLocalFilePath
   :: ( MonadMultiReader Infos m )
   => String
@@ -217,6 +225,53 @@ getLocalFilePath
 getLocalFilePath s = do
   infos <- mAsk
   return $ _i_cwd infos </> decodeString s
+
+
+runCommandStdOut
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiState LogState m
+     )
+  => String
+  -> [String]
+  -> m String
+runCommandStdOut c ps = do
+  let infoStr = c ++ " " ++ intercalate " " ps
+  (exitCode, stdOut, _stdErr) <- liftIO $
+    Process.readProcessWithExitCode c ps ""
+  case exitCode of
+    ExitFailure _ -> do
+      pushLog LogLevelError $ "Error running command `" ++ infoStr ++ "`."
+      mzero
+    ExitSuccess -> do
+      return stdOut
+
+getExternalProgramVersion
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiState LogState m
+     )
+  => String
+  -> m [Int]
+getExternalProgramVersion prog = do
+  let err = do
+        pushLog LogLevelError $ "Could not determine version of external program " ++ prog
+        mzero
+  (exitCode, stdOut, _stdErr) <- liftIO $
+    Process.readProcessWithExitCode prog ["--version"] ""
+  case exitCode of
+    ExitSuccess -> do
+      case lines stdOut of
+        (line:_) -> case takeWhile (`elem` ".0123456789")
+                       $ dropWhile (not . Char.isNumber) line of
+          "" -> err
+          s -> do
+            pushLog LogLevelInfoVerbose $ "detected " ++ prog ++ " version " ++ s
+            case mapM readMaybe $ Split.splitOn "." s of
+              Just vs -> return vs
+              Nothing -> err
+        _ -> err
+    ExitFailure _ -> err
 
 
 

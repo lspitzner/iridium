@@ -9,6 +9,8 @@ module Development.Iridium.Types
   ( Infos (..)
   , Repo (..)
   , NoRepo (..)
+  , LogLevel (..)
+  , LogState (..)
   , Config
   , repoRunChecks
   , repoDisplaySummary
@@ -66,6 +68,26 @@ instance MonadBaseControl b m => MonadBaseControl b (MultiRWST r w s m) where
   restoreM = defaultRestoreM
 
 
+data LogLevel = LogLevelSilent
+              | LogLevelPrint -- like manual output; should never be filtered
+              | LogLevelDebug
+              | LogLevelTrace
+              | LogLevelWarn
+              | LogLevelError
+              | LogLevelInfo
+              | LogLevelInfoVerbose
+              | LogLevelInfoVerboser
+              | LogLevelInfoSpam
+              | LogLevelThread
+  deriving (Show, Eq)
+
+data LogState = LogState
+  { _log_mask     :: [LogLevel]
+  , _log_indent   :: Int
+  , _log_prepared :: Maybe String
+  , _log_cur      :: String
+  }
+
 type Config = Yaml.Value
 
 data Infos = forall repo . Repo repo => Infos
@@ -88,24 +110,29 @@ class Repo a where
   repo_retrieveInfo   :: ( MonadIO m
                          , MonadPlus m
                          , MonadMultiReader Config m
+                         , MonadMultiState LogState m
                          )
                       => m a
   -- | The checks to be run for this repo type
   repo_runChecks      :: ( MonadIO m
                          , MonadPlus m
                          , MonadMultiReader Config m
+                         , MonadMultiState LogState m
+                         , MonadMultiState CheckState m
                          )
                       => a -> m ()
   -- | Summary of repository-type-specific information
   --   to display to the user, e.g. "current branch: .."
   repo_displaySummary :: ( MonadIO m
                          , MonadMultiReader Config m
+                         , MonadMultiState LogState m
                          )
                       => a
                       -> m ()
   -- | (Configured) (repository-type-specific) actions
   --   that will be taken, e.g. "Tag the current commit"
   repo_ActionSummary  :: ( MonadMultiReader Config m
+                         , MonadMultiState LogState m
                          )
                       => a -> m [String]
   -- | Perform repository-type-specific real side-effects.
@@ -114,6 +141,7 @@ class Repo a where
   repo_performAction  :: ( MonadIO m
                          , MonadPlus m
                          , MonadMultiReader Config m
+                         , MonadMultiState LogState m
                          )
                       => a -> m ()
 
@@ -122,6 +150,8 @@ repoRunChecks
      , MonadPlus m
      , MonadMultiReader Infos m
      , MonadMultiReader Config m
+     , MonadMultiState LogState m
+     , MonadMultiState CheckState m
      )
   => m ()
 repoRunChecks = do
@@ -132,6 +162,7 @@ repoDisplaySummary
   :: ( MonadIO m
      , MonadMultiReader Infos m
      , MonadMultiReader Config m
+     , MonadMultiState LogState m
      )
   => m ()
 repoDisplaySummary = do
@@ -142,6 +173,7 @@ repoActionSummary
   :: ( MonadIO m
      , MonadMultiReader Infos m
      , MonadMultiReader Config m
+     , MonadMultiState LogState m
      )
   => m [String]
 repoActionSummary = do
@@ -153,6 +185,7 @@ repoPerformAction
      , MonadPlus m
      , MonadMultiReader Infos m
      , MonadMultiReader Config m
+     , MonadMultiState LogState m
      )
   => m ()
 repoPerformAction = do

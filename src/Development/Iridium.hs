@@ -30,14 +30,11 @@ import           Data.Proxy
 import           Data.Tagged
 import           Data.List
 import           Data.HList.HList
-import qualified Data.Char as Char
-import qualified Data.List.Split as Split
 
 import           Data.HList.ContainsType
 
 import           Data.Version ( showVersion, parseVersion )
 import           Filesystem.Path.CurrentOS
-import qualified System.Process as Process
 import           System.Exit
 import           Text.ParserCombinators.ReadP
 import qualified Distribution.PackageDescription as PackageDescription
@@ -52,39 +49,13 @@ import           Development.Iridium.Config
 import           Development.Iridium.UI.Prompt
 import           Development.Iridium.CheckState
 import qualified Development.Iridium.Checks  as Checks
+import qualified Development.Iridium.Repo.Git as Git
 
 
 
 initNote :: String
 initNote
   = "iridium - automated cabal package uploading utility"
-
-getExternalProgramVersion
-  :: ( MonadIO m
-     , MonadPlus m
-     , MonadMultiState LogState m
-     )
-  => String
-  -> m [Int]
-getExternalProgramVersion prog = do
-  let err = do
-        pushLog LogLevelError $ "Could not determine version of external program " ++ prog
-        mzero
-  (exitCode, stdOut, _stdErr) <- liftIO $
-    Process.readProcessWithExitCode prog ["--version"] ""
-  case exitCode of
-    ExitSuccess -> do
-      case lines stdOut of
-        (line:_) -> case takeWhile (`elem` ".0123456789")
-                       $ dropWhile (not . Char.isNumber) line of
-          "" -> err
-          s -> do
-            pushLog LogLevelInfoVerbose $ "detected " ++ prog ++ " version " ++ s
-            case mapM readMaybe $ Split.splitOn "." s of
-              Just vs -> return vs
-              Nothing -> err
-        _ -> err
-    ExitFailure _ -> err
 
 retrieveInfos
   :: ( MonadIO m
@@ -138,12 +109,15 @@ retrieveInfos = do
         (_, "") -> True
         _       -> False
   pushLog LogLevelInfoVerbose $ "remote version: " ++ show (liftM showVersion latestVersionM)
-  repoType <- configReadStringM ["repository", "type"]
-  case repoType of
-    "none" -> do
-      repoInfo :: NoRepo <- repo_retrieveInfo
-      return $ Infos cwd packageDesc latestVersionM repoInfo
-    _ -> error $ "bad confirmation value " ++ repoType
+  configDecideStringM ["repository", "type"]
+    [ (,) "none" $ do
+        repoInfo :: NoRepo <- repo_retrieveInfo
+        return $ Infos cwd packageDesc latestVersionM repoInfo
+    , (,) "git" $ do
+        repoInfo :: Git.GitImpl <- repo_retrieveInfo
+        return $ Infos cwd packageDesc latestVersionM repoInfo
+    ]
+
 
 runChecks
   :: ( m ~ MultiRWST r w s m0

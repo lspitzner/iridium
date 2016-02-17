@@ -56,6 +56,7 @@ library {
     Development.Iridium.Utils
     Development.Iridium.UI.Console
     Development.Iridium.UI.Prompt
+    Development.Iridium.Repo.Git
     Development.Iridium.Config
     Development.Iridium.Hackage
     Development.Iridium.CheckState

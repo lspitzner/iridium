@@ -29,26 +29,6 @@ import           Development.Iridium.Types
 
 
 
-data LogLevel = LogLevelSilent
-              | LogLevelPrint -- like manual output; should never be filtered
-              | LogLevelDebug
-              | LogLevelTrace
-              | LogLevelWarn
-              | LogLevelError
-              | LogLevelInfo
-              | LogLevelInfoVerbose
-              | LogLevelInfoVerboser
-              | LogLevelInfoSpam
-              | LogLevelThread
-  deriving (Show, Eq)
-
-data LogState = LogState
-  { _log_mask     :: [LogLevel]
-  , _log_indent   :: Int
-  , _log_prepared :: Maybe String
-  , _log_cur      :: String
-  }
-
 initialLogState :: LogState
 initialLogState = LogState
   [ LogLevelPrint
