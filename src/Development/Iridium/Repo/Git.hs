@@ -14,6 +14,7 @@ import           Control.Monad.Extra ( whenM )
 
 import           Development.Iridium.Types
 import           Development.Iridium.Utils
+import           Development.Iridium.ExternalProgWrappers
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Config
 

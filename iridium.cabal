@@ -54,6 +54,7 @@ library {
   exposed-modules: {
     Development.Iridium.Types
     Development.Iridium.Utils
+    Development.Iridium.ExternalProgWrappers
     Development.Iridium.UI.Console
     Development.Iridium.UI.Prompt
     Development.Iridium.Repo.Git

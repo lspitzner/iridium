@@ -50,6 +50,7 @@ import           Development.Iridium.UI.Prompt
 import           Development.Iridium.CheckState
 import qualified Development.Iridium.Checks  as Checks
 import qualified Development.Iridium.Repo.Git as Git
+import           Development.Iridium.ExternalProgWrappers
 
 
 
