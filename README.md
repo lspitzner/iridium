@@ -36,15 +36,37 @@ Checking basic compilation:                                           clear.
 Checking that all dependencies have upper bounds:                     clear.
 Checking package validity:                                            clear.
 Comparing local version to hackage version:                           clear.
+[git]
+  Testing for uncommitted changes:                                    clear.
 Summary:
   Package:         iridium
-  Version:         0.1.1.0
+  Version:         0.1.2.0
   Warning count:   0
   Error   count:   0
   Not -Wall clean:
-  Actions:         Upload package, Upload documentation 
-> Continue <y>es <n>o? > n
-$ 
+  [git]
+    Branch:        master
+
+  Actions:         Upload package, Upload documentation
+
+> Continue [y]es [n]o? > y
+Performing upload..
+Building source dist for iridium-0.1.2.0...
+Preprocessing library iridium-0.1.2.0...
+Preprocessing executable 'iridium' for iridium-0.1.2.0...
+Source tarball created: dist/iridium-0.1.2.0.tar.gz
+Hackage password:
+Uploading dist/iridium-0.1.2.0.tar.gz...
+Ok
+Upload successful.
+Performing doc upload..
+[.. some haddock spam ..]
+Documentation tarball created: dist/iridium-0.1.2.0-docs.tar.gz
+Hackage password:
+Uploading documentation dist/iridium-0.1.2.0-docs.tar.gz...
+Ok
+Documentation upload successful.
+$
 ~~~~
 
 # Configuration
