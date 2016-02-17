@@ -10,6 +10,8 @@ module Development.Iridium.Config
   , configReadStringMaybeM
   , configReadList
   , configReadListM
+  , configReadStringWithDefaultM
+  , configDecideStringM
   )
 where
 
@@ -24,6 +26,7 @@ import qualified Data.HashMap.Strict   as HM
 import qualified Data.ByteString.Char8 as BSChar8
 import qualified Data.Text             as Text
 import qualified Data.Vector           as DV
+import qualified Data.List             as List
 
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.IO.Class
@@ -32,6 +35,7 @@ import           Control.Monad.Trans.MultiRWS
 import           Data.Text ( Text )
 import           Control.Monad
 import           Data.Monoid
+import           Data.Maybe
 
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
@@ -167,6 +171,14 @@ configReadStringMaybe ps'' = go ps''
                     Yaml.Object hm -> go pr =<< HM.lookup (Text.pack p) hm
                     _              -> Nothing
 
+configReadStringWithDefaultM
+  :: MonadMultiReader Config m
+  => String
+  -> [String]
+  -> m String
+configReadStringWithDefaultM def ps = do
+  liftM (fromMaybe def) $ configReadStringMaybeM ps
+
 configReadListM
   :: MonadMultiReader Config m
   => [String]
@@ -185,3 +197,24 @@ configReadList ps'' = go ps''
                       Just v' -> go pr v'
                       Nothing -> error $ "error in yaml data: no find element " ++ show p ++ " when looking for config " ++ show ps''
                     _ -> error $ "error in yaml data: expected Object, got " ++ show v
+
+configDecideStringM
+  :: ( MonadIO m
+     , MonadPlus m
+     , MonadMultiReader Config m
+     , MonadMultiState LogState m
+     )
+  => [String]
+  -> [(String, m a)]
+  -> m a
+configDecideStringM ps opts = do
+  str <- configReadStringM ps
+  case List.lookup str opts of
+    Nothing -> do
+      pushLog LogLevelError $ "Error looking up config value "
+                           ++ show ps
+                           ++ "; expecting one of "
+                           ++ show (fmap fst opts)
+                           ++ "."
+      mzero
+    Just k -> k

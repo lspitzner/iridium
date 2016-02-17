@@ -3,6 +3,7 @@
 module Development.Iridium.UI.Prompt
   ( askConfirmationOrMZero
   , promptYesOrNo
+  , promptSpecific
   )
 where
 
@@ -63,3 +64,14 @@ promptYesOrNo p = do
       return ()
     "n" -> mzero
     _   -> promptYesOrNo p
+
+promptSpecific
+  :: (MonadIO m, MonadPlus m)
+  => String
+  -> String
+  -> m ()
+promptSpecific p cont = do
+  liftIO $ putStr $ "> " ++ p ++ "> "
+  liftIO $ hFlush stdout
+  s <- liftIO $ getLine
+  if s == cont then return () else mzero

@@ -55,7 +55,6 @@ import qualified Development.Iridium.Checks  as Checks
 
 
 
-
 initNote :: String
 initNote
   = "iridium - automated cabal package uploading utility"
@@ -209,10 +208,12 @@ askGlobalConfirmation
      , MonadPlus m
      , MonadMultiReader Config m
      )
-  => m ()
-askGlobalConfirmation = do
-  whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $
-    promptYesOrNo "Continue <y>es <n>o? "
+  => Bool
+  -> m ()
+askGlobalConfirmation existErrors = do
+  if existErrors
+    then promptSpecific "There are errors; write \"override\" to (try) continue anyways " "override"
+    else promptYesOrNo "Continue [y]es [n]o? "
 
 iridiumMain :: MultiRWST '[Config] '[] '[LogState] (MaybeT IO) ()
 iridiumMain = do
@@ -220,16 +221,15 @@ iridiumMain = do
   withMultiReader infos $ withMultiStateA initCheckState $ do
     runChecks
     displaySetting      <- configIsTrueM     ["process", "print-summary"]
-    confirmationSetting <- configReadStringM ["process", "confirmation"]
     existWarnings <- liftM ((/=0) . _check_warningCount) mGet
     existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
     when displaySetting displaySummary
-    case confirmationSetting of
-      "confirm-always"     -> when (True                        ) askGlobalConfirmation
-      "confirm-on-warning" -> when (existWarnings || existErrors) askGlobalConfirmation
-      "confirm-on-error"   -> when (                 existErrors) askGlobalConfirmation
-      _ -> error $ "bad config value " ++ confirmationSetting
     whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
+      configDecideStringM ["process", "confirmation"]
+        [ ("confirm-always"    , when (True                        ) $ askGlobalConfirmation existErrors)
+        , ("confirm-on-warning", when (existWarnings || existErrors) $ askGlobalConfirmation existErrors)
+        , ("confirm-on-error"  , when (                 existErrors) $ askGlobalConfirmation existErrors)
+        ]
       repoPerformAction
       uploadPackage
       whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs
