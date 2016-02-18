@@ -82,6 +82,7 @@ instance Repo GitImpl where
         mzeroIfNonzero $ liftIO $
           runProcess "git"
                      ( [ "push"
+                       , "--tags"
                        , remote
                        ]
                      )
