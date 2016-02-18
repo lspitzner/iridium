@@ -141,6 +141,7 @@ class Repo a where
   repo_performAction  :: ( MonadIO m
                          , MonadPlus m
                          , MonadMultiReader Config m
+                         , MonadMultiReader Infos m
                          , MonadMultiState LogState m
                          )
                       => a -> m ()

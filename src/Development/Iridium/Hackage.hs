@@ -16,6 +16,7 @@ import           Control.Monad
 import           Data.Version
 import           Distribution.Package ( PackageName(..) )
 import qualified Turtle                 as Turtle
+import           System.Exit
 
 import qualified Network.HTTP.Conduit   as HTTP
 import qualified Text.XmlHtml           as Html
@@ -99,12 +100,6 @@ uploadPackage = do
       pvers <- askPackageVersion
       username <- configReadStringMaybeM ["setup", "hackage", "username"]
       password <- configReadStringMaybeM ["setup", "hackage", "password"]
-      let mzeroIfNonzero :: m Turtle.ExitCode -> m ()
-          mzeroIfNonzero k = do
-            r <- k
-            case r of
-              Turtle.ExitSuccess   -> return ()
-              Turtle.ExitFailure _ -> mzero
 
       let filePath = "dist/" ++ pname ++ "-" ++ showVersion pvers ++ ".tar.gz"
       mzeroIfNonzero $ liftIO $
@@ -142,12 +137,7 @@ uploadDocs = do
     "cabal" -> do
       username <- configReadStringMaybeM ["setup", "hackage", "username"]
       password <- configReadStringMaybeM ["setup", "hackage", "password"]
-      let mzeroIfNonzero :: m Turtle.ExitCode -> m ()
-          mzeroIfNonzero k = do
-            r <- k
-            case r of
-              Turtle.ExitSuccess   -> return ()
-              Turtle.ExitFailure _ -> mzero
+      infoVerbEnabled <- isEnabledLogLevel LogLevelInfoVerbose
       mzeroIfNonzero $ liftIO $
         runProcess "cabal"
                    ( [ "upload"
@@ -155,6 +145,7 @@ uploadDocs = do
                      ]
                    ++ ["-u" ++ u | u <- maybeToList username]
                    ++ ["-p" ++ p | p <- maybeToList password]
+                   ++ ["-v0" | not infoVerbEnabled]
                    )
                    Nothing Nothing Nothing Nothing Nothing
         >>= waitForProcess
@@ -163,5 +154,3 @@ uploadDocs = do
       pushLog LogLevelError "TODO: stack upload"
       mzero
     _ -> mzero
-
-

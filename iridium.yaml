@@ -63,7 +63,7 @@ repository:
     push-remote: # NOT YET SUPPORTED !
       # push the current branch (and the tag, if configured) to
       # a remote repo.
-      enabled: False
+      enabled: True
       # the "remote" configured in git to push the release/tag to.
-      # remote-name: "origin"
+      remote-name: "lspitzner"
 ...

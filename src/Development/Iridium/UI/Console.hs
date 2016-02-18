@@ -10,6 +10,7 @@ module Development.Iridium.UI.Console
   , initialLogState
   , withIndentation
   , withoutIndentation
+  , isEnabledLogLevel
   )
 where
 
@@ -133,8 +134,8 @@ pushLog
   -> m ()
 pushLog level message = checkWhenLevel level $ do
   flushPrepared
-  mess <- getIndentLine message
-  liftIO $ putStrLn mess
+  forM_ (lines message) $
+    (liftIO . putStrLn =<<) . getIndentLine
 
 pushLogPrepare
   :: ( MonadMultiState LogState m
@@ -196,6 +197,14 @@ pushCurLine level = do
     then liftIO $ putStrLn ""
     else liftIO $ clearLine >> setCursorColumn 0 >> hFlush stdout
   mSet $ s { _log_cur = "" }
+
+isEnabledLogLevel
+  :: ( MonadMultiState LogState m )
+  => LogLevel
+  -> m Bool
+isEnabledLogLevel level = do
+  s <- mGet
+  return $ level `elem` _log_mask s
 
 -- putLog
 --   :: ( MonadMultiState LogState m

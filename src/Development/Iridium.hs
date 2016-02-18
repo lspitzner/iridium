@@ -34,7 +34,7 @@ import           Data.HList.HList
 import           Data.HList.ContainsType
 
 import           Data.Version ( showVersion, parseVersion )
-import           Filesystem.Path.CurrentOS
+import           Filesystem.Path.CurrentOS hiding ( null )
 import           System.Exit
 import           Text.ParserCombinators.ReadP
 import qualified Distribution.PackageDescription as PackageDescription
@@ -174,14 +174,18 @@ displaySummary = do
       CheckState _ errC warnC walls <- mGet
       pushLog LogLevelPrint $ "Warning count:   " ++ show warnC
       pushLog LogLevelPrint $ "Error   count:   " ++ show errC
-      pushLog LogLevelPrint $ "Not -Wall clean: " ++ intercalate ", " (reverse walls)
+      let wallStr = if null walls then "[]" else intercalate ", " (reverse walls)
+      pushLog LogLevelPrint $ "Not -Wall clean: " ++ wallStr
     do
       repoDisplaySummary
     uploadEnabled <- configIsTrueM ["process", "upload-docs"]
+    repoActions <- repoActionSummary
     let actions = ["Upload package"]
                ++ ["Upload documentation" | uploadEnabled]
+               ++ repoActions
     pushLog LogLevelPrint ""
-    pushLog LogLevelPrint $ "Actions:         " ++ intercalate ", " actions
+    pushLog LogLevelPrint $ "Actions:         " ++ intercalate
+                          "\n                 " actions
   return ()
 
 askGlobalConfirmation

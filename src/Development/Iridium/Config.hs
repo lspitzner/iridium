@@ -12,6 +12,7 @@ module Development.Iridium.Config
   , configReadListM
   , configReadStringWithDefaultM
   , configDecideStringM
+  , mergeConfigs
   )
 where
 

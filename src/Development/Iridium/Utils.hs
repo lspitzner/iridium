@@ -17,6 +17,7 @@ module Development.Iridium.Utils
   , boolToWarning
   , boolToError
   , getLocalFilePath
+  , mzeroIfNonzero
   )
 where
 
@@ -141,6 +142,16 @@ fallbackCheck m1 m2 = do
   if x
     then return True
     else m2
+
+mzeroIfNonzero
+  :: ( MonadPlus m )
+  => m ExitCode
+  -> m ()
+mzeroIfNonzero k = do
+  r <- k
+  case r of
+    ExitSuccess   -> return ()
+    ExitFailure _ -> mzero
 
 ignoreBool :: Monad m => m Bool -> m ()
 ignoreBool = liftM (const ())

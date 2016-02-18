@@ -15,6 +15,9 @@ import           Control.Monad
 import qualified System.Environment
 import qualified System.Console.GetOpt as GetOpt
 import           Data.Version ( showVersion )
+import qualified Data.Yaml             as Yaml
+import qualified Data.HashMap.Strict   as HM
+import qualified Data.Text             as Text
 
 import           Development.Iridium
 import           Development.Iridium.Config
@@ -29,13 +32,15 @@ data Option
   = OptionHelp
   | OptionVersion
   | OptionVerbose
+  | OptionDryRun
   deriving (Eq)
 
 optDescrs :: [GetOpt.OptDescr Option]
 optDescrs =
-  [ GetOpt.Option "h" ["help"]    (GetOpt.NoArg OptionHelp   ) "help"
-  , GetOpt.Option ""  ["version"] (GetOpt.NoArg OptionVersion) "version"
-  , GetOpt.Option "v" ["verbose"] (GetOpt.NoArg OptionVerbose) "verbosity"
+  [ GetOpt.Option "h" ["help"]    (GetOpt.NoArg OptionHelp   ) "print help and exit"
+  , GetOpt.Option ""  ["version"] (GetOpt.NoArg OptionVersion) "print version and exit"
+  , GetOpt.Option "v" ["verbose"] (GetOpt.NoArg OptionVerbose) "control verbosity. Can be used multiple times, -vvvv is max."
+  , GetOpt.Option ""  ["dry-run"] (GetOpt.NoArg OptionDryRun)  "stop before firing any rockets."
   ]
 
 
@@ -70,5 +75,11 @@ main = do
               ++ [ LogLevelInfoSpam     | verbosity > 3 ]
     setLogMask levels
     config <- parseConfigs
-    withMultiReader config $ iridiumMain
+    let argConfig = if OptionDryRun `elem` opts
+          then Yaml.Object $ HM.singleton (Text.pack "process")
+             $ Yaml.Object $ HM.singleton (Text.pack "dry-run")
+             $ Yaml.Bool   $ True
+          else Yaml.Object $ HM.empty
+    let mergedConfig = mergeConfigs argConfig config
+    withMultiReader mergedConfig $ iridiumMain
   return ()

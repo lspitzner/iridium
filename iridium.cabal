@@ -13,7 +13,6 @@ Homepage:            https://github.com/lspitzner/iridium
 Bug-reports:         https://github.com/lspitzner/iridium/issues
 category:            Development
 build-type:          Simple
-extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 description: {
@@ -47,6 +46,7 @@ data-files: {
 
 extra-source-files: {
   README.md
+  ChangeLog.md
 }
 
 source-repository head {
@@ -124,9 +124,12 @@ executable iridium {
   build-depends:
     { base >=4.7 && <4.9
     , iridium
+    , yaml <0.9
     , transformers <0.5
+    , unordered-containers <0.3
     , multistate <0.7
     , extra <1.5
+    , text <1.3
     }
   hs-source-dirs: {
     src-main
