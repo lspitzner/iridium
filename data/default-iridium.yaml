@@ -48,7 +48,7 @@ checks:
   testsuites:
     enabled: True
   compiler-warnings:
-    enabled: False
+    enabled: True
     # whitelist: [only, these, tests] # not supported yet
     # blacklist: [omit, these, tests] # not supported yet
   # if you are completely unlucky, this might _overwrite_
@@ -71,6 +71,14 @@ checks:
     # config above.
     compilers:
       - compiler: ghc
+        version: 7.0.4
+      - compiler: ghc
+        version: 7.2.2
+      - compiler: ghc
+        version: 7.4.2
+      - compiler: ghc
+        version: 7.6.3
+      - compiler: ghc
         version: 7.8.4
       - compiler: ghc
         version: 7.10.3
@@ -90,7 +98,7 @@ repository:
     push-remote: # NOT YET SUPPORTED !
       # push the current branch (and the tag, if configured) to
       # a remote repo.
-      enabled: False
+      enabled: True
       # the "remote" configured in git to push the release/tag to.
       # remote-name: "origin"
 ...
