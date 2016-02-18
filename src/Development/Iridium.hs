@@ -163,19 +163,24 @@ displaySummary = do
   pushLog LogLevelPrint "Summary:"
   withIndentation $ do
     Package.PackageName pNameStr <- askPackageName
-    pushLog LogLevelPrint $ "Package:         " ++ pNameStr
+    pushLog LogLevelPrint $ "Package:                " ++ pNameStr
     pVersion <- askPackageVersion
-    pushLog LogLevelPrint $ "Version:         " ++ showVersion pVersion
+    pushLog LogLevelPrint $ "Version:                " ++ showVersion pVersion
+    latestVersionM <- liftM _i_remote_version mAsk
+    case latestVersionM of
+      Nothing -> return ()
+      Just v ->
+        pushLog LogLevelPrint $ "Latest hackage version: " ++ showVersion v
     -- TODO: This should not be printed unless we verify that
     --       the information is correct by looking at the .cabal config.
     -- remoteServer <- configReadStringM ["setup", "remote-server"]
     -- pushLog LogLevelPrint $ "Remote location: " ++ remoteServer
     do
       CheckState _ errC warnC walls <- mGet
-      pushLog LogLevelPrint $ "Warning count:   " ++ show warnC
-      pushLog LogLevelPrint $ "Error   count:   " ++ show errC
+      pushLog LogLevelPrint $ "Warning count:          " ++ show warnC
+      pushLog LogLevelPrint $ "Error   count:          " ++ show errC
       let wallStr = if null walls then "[]" else intercalate ", " (reverse walls)
-      pushLog LogLevelPrint $ "Not -Wall clean: " ++ wallStr
+      pushLog LogLevelPrint $ "Not -Wall clean:        " ++ wallStr
     do
       repoDisplaySummary
     uploadEnabled <- configIsTrueM ["process", "upload-docs"]
@@ -184,8 +189,8 @@ displaySummary = do
                ++ ["Upload documentation" | uploadEnabled]
                ++ repoActions
     pushLog LogLevelPrint ""
-    pushLog LogLevelPrint $ "Actions:         " ++ intercalate
-                          "\n                 " actions
+    pushLog LogLevelPrint $ "Actions:                " ++ intercalate
+                          "\n                        " actions
   return ()
 
 askGlobalConfirmation

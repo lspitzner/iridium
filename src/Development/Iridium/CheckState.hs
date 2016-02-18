@@ -103,7 +103,7 @@ logStack
   => m ()
 logStack = do
   s1 <- mGet
-  let line = "(stack: "
+  let line = "("
           ++ intercalate ": " (reverse $ _check_stack s1)
           ++ ")"
   pushLog LogLevelPrint line

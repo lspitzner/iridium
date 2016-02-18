@@ -46,7 +46,7 @@ instance Repo GitImpl where
     pushLog LogLevelPrint $ "[git]"
     withIndentation $ do
       whenM (configIsTrueM ["repository", "git", "display-current-branch"]) $
-        pushLog LogLevelPrint $ "Branch:        " ++ _git_branchName git
+        pushLog LogLevelPrint $ "Branch:               " ++ _git_branchName git
   repo_ActionSummary _git = do
     tagEnabled <- configIsEnabledM ["repository", "git", "release-tag"]
     pushEnabled <- configIsEnabledM ["repository", "git", "push-remote"]
