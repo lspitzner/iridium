@@ -107,13 +107,14 @@ retrieveInfos = do
               $ PackageDescription.packageDescription
               $ packageDesc
   urlStr <- configReadStringM ["setup", "remote-server"]
-  latestVersionStr <- retrieveLatestVersion urlStr pkgName
-  let parseResults = readP_to_S parseVersion latestVersionStr
-  let latestVersionM = fmap fst
-                     $ flip find parseResults
-                     $ \r -> case r of
-        (_, "") -> True
-        _       -> False
+  latestVersionStrM <- retrieveLatestVersion urlStr pkgName
+  let latestVersionM = latestVersionStrM >>= \latestVersionStr ->
+        let parseResults = readP_to_S parseVersion latestVersionStr
+         in fmap fst
+          $ flip find parseResults
+          $ \r -> case r of
+            (_, "") -> True
+            _       -> False
   pushLog LogLevelInfoVerbose $ "remote version: " ++ show (liftM showVersion latestVersionM)
   configDecideStringM ["repository", "type"]
     [ (,) "none" $ do

@@ -13,6 +13,7 @@ import           Control.Monad ( mzero, when )
 import           Data.Maybe ( listToMaybe, maybeToList )
 import           Control.Monad.Trans.MultiRWS
 import           Control.Monad
+import           Control.Exception
 import           Data.Version
 import           Distribution.Package ( PackageName(..) )
 import qualified Turtle                 as Turtle
@@ -39,7 +40,7 @@ retrieveLatestVersion
      , MonadMultiState LogState m
      , MonadPlus m
      )
-  => String -> String -> m String
+  => String -> String -> m (Maybe String)
 retrieveLatestVersion remoteUrl pkgName = do
   let urlStr :: String = remoteUrl ++ "/package/" ++ pkgName ++ "/preferred"
   pushLog LogLevelInfo $ "Looking up latest version from hackage via url " ++ urlStr
@@ -56,31 +57,34 @@ retrieveLatestVersion remoteUrl pkgName = do
   --   Right x -> return $ HTTP.rspBody x
 
   -- TODO: error handling
-  rawHtml <- HTTP.simpleHttp urlStr
-  case Html.parseHTML "hackage:response"
-     $ ByteString.concat
-     $ ByteStringL.toChunks rawHtml of
-    Left e -> do
-      pushLog LogLevelError e
-      mzero
-    Right x -> do
-      let mStr  = fmap (Text.unpack . Html.nodeText)
-                $ ( listToMaybe . Html.childNodes )
-              =<< listToMaybe
-                  ( reverse
-                  $ Html.descendantElementsTag (Text.pack "a")
-                    ( head
-                    $ Html.docContent
-                    $ x
+
+  rawHtmlE <- liftIO $ try $ HTTP.simpleHttp urlStr
+  case rawHtmlE of
+    Left (_::HTTP.HttpException) -> return Nothing
+    Right rawHtml -> case Html.parseHTML "hackage:response"
+                        $ ByteString.concat
+                        $ ByteStringL.toChunks rawHtml of
+      Left e -> do
+        pushLog LogLevelError e
+        mzero
+      Right x -> do
+        let mStr  = fmap (Text.unpack . Html.nodeText)
+                  $ ( listToMaybe . Html.childNodes )
+                =<< listToMaybe
+                    ( reverse
+                    $ Html.descendantElementsTag (Text.pack "a")
+                      ( head
+                      $ Html.docContent
+                      $ x
+                      )
                     )
-                  )
-      case mStr of
-        Nothing -> do
-          pushLog LogLevelError "Error: Could not decode hackage response."
-          mzero
-        Just s -> do
-          pushLog LogLevelInfoVerbose $ "got: " ++ s
-          return s
+        case mStr of
+          Nothing -> do
+            pushLog LogLevelError "Error: Could not decode hackage response."
+            mzero
+          Just s -> do
+            pushLog LogLevelInfoVerbose $ "got: " ++ s
+            return $ Just s
 
 uploadPackage
   :: forall m
