@@ -49,17 +49,21 @@ instance Repo GitImpl where
         pushLog LogLevelPrint $ "Branch:               " ++ _git_branchName git
   repo_ActionSummary _git = do
     tagEnabled <- configIsEnabledM ["repository", "git", "release-tag"]
+    tagAction <- if tagEnabled
+      then do
+        tagStr <- askTagString
+        return $ ["Tag the current commit with \"" ++ tagStr ++ "\""]
+      else
+        return []
     pushEnabled <- configIsEnabledM ["repository", "git", "push-remote"]
-    return $ ["Tag the current commit" | tagEnabled]
-          ++ ["Push the current branch to upstream repo" | pushEnabled]
+    return $ tagAction
+          ++ ["Push current branch and tag to upstream repo" | pushEnabled]
   repo_performAction git = do
     tagEnabled <- configIsEnabledM ["repository", "git", "release-tag"]
     when tagEnabled $ do
       pushLog LogLevelPrint "[git] Tagging this release."
       withIndentation $ do
-        tagRawStr <- configReadStringWithDefaultM "$VERSION" ["repository", "git", "release-tag", "content"]
-        vers <- liftM showVersion askPackageVersion
-        let tagStr = replace "$VERSION" vers tagRawStr
+        tagStr <- askTagString
         curOut <- runCommandStdOut "git" ["tag", "-l", tagStr]
         pushLog LogLevelDebug curOut
         if all isSpace curOut
@@ -90,6 +94,17 @@ instance Repo GitImpl where
                      Nothing Nothing Nothing Nothing Nothing
           >>= waitForProcess
     return ()
+
+askTagString
+  :: ( MonadMultiReader Config m
+     , MonadMultiReader Infos m
+     )
+  => m String
+askTagString = do
+  tagRawStr <- configReadStringWithDefaultM "$VERSION" ["repository", "git", "release-tag", "content"]
+  vers <- liftM showVersion askPackageVersion
+  return $ replace "$VERSION" vers tagRawStr
+
 
 uncommittedChangesCheck
   :: ( MonadIO m
