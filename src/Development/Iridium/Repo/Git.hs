@@ -52,7 +52,7 @@ instance Repo GitImpl where
     pushEnabled <- configIsEnabledM ["repository", "git", "push-remote"]
     return $ ["Tag the current commit" | tagEnabled]
           ++ ["Push the current branch to upstream repo" | pushEnabled]
-  repo_performAction _git = do
+  repo_performAction git = do
     tagEnabled <- configIsEnabledM ["repository", "git", "release-tag"]
     when tagEnabled $ do
       pushLog LogLevelPrint "[git] Tagging this release."
@@ -84,6 +84,7 @@ instance Repo GitImpl where
                      ( [ "push"
                        , "--tags"
                        , remote
+                       , _git_branchName git
                        ]
                      )
                      Nothing Nothing Nothing Nothing Nothing
