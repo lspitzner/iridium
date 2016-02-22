@@ -1,5 +1,20 @@
 # Revision history for iridium
 
-## 0.1.0.0  -- YYYY-mm-dd
+## 0.1.4.0  -- 2016-02-22
 
-* First version. Released on an unsuspecting world.
+  * Fix various bugs
+
+  * Make various changes to the default iridium.yaml
+
+  * Fix/Expand basic git functionality; it includes:
+    * Displaying current branch
+    * Tagging the current commit
+    * Pushing tag and branch to remote
+
+## 0.1.4.0  -- 2016-02-18
+
+  * Start integrating some git-specific functionality
+
+## 0.1.2.0  -- 2016-02-17
+
+  * First release, experimental.

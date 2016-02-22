@@ -41,7 +41,7 @@ checks:
   upper-bounds-exist:
     enabled: True
   changelog:
-    enabled: False
+    enabled: True
     location: ChangeLog.md
   compiler-versions:
     enabled: True
