@@ -57,7 +57,7 @@ checks:
   upper-bounds-stackage:
     # for existing upper bounds
     enabled: False
-    use-nightly: True
+    use-nightly: False
     # blacklist: [omit, check, for, these, packages] # not supported yet
   upper-bounds-exist:
     enabled: True
