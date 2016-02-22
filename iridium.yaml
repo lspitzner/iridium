@@ -42,7 +42,7 @@ checks:
     enabled: True
   changelog:
     enabled: False
-    location: changelog.md
+    location: ChangeLog.md
   compiler-versions:
     enabled: True
     compilers:

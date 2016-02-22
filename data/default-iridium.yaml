@@ -63,7 +63,7 @@ checks:
     enabled: True
   changelog:
     enabled: True
-    location: changelog.md
+    location: ChangeLog.md
   compiler-versions:
     enabled: False
     # for this to work, cabal will need the paths to the actual
