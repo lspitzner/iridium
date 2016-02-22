@@ -57,7 +57,7 @@ instance Repo GitImpl where
     when tagEnabled $ do
       pushLog LogLevelPrint "[git] Tagging this release."
       withIndentation $ do
-        tagRawStr <- configReadStringWithDefaultM "v$VERSION" ["repository", "git", "release-tag", "content"]
+        tagRawStr <- configReadStringWithDefaultM "$VERSION" ["repository", "git", "release-tag", "content"]
         vers <- liftM showVersion askPackageVersion
         let tagStr = replace "$VERSION" vers tagRawStr
         curOut <- runCommandStdOut "git" ["tag", "-l", tagStr]

@@ -92,7 +92,7 @@ repository:
     display-current-branch: True
     release-tag: # NOT YET SUPPORTED !
       enabled: True
-      content: "v$VERSION"
+      content: "$VERSION"
       # NOT YET SUPPORTED
       # params: []
     push-remote: # NOT YET SUPPORTED !
