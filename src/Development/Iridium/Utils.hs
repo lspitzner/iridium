@@ -22,49 +22,25 @@ module Development.Iridium.Utils
 where
 
 
-import           Prelude hiding ( FilePath )
 
-import qualified Data.Text           as Text
+#include "qprelude/bundle-gamma.inc"
+
 import qualified Turtle              as Turtle
-import qualified Control.Foldl       as Foldl
 import qualified Control.Exception   as C
 
 import qualified Data.Yaml           as Yaml
-import           Control.Monad.Trans.MultiRWS
-import           Control.Monad.Trans.MultiState as MultiState
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Class
-import           Control.Monad.IO.Class
 import           Distribution.PackageDescription
 import           Distribution.Package
 import           Filesystem.Path.CurrentOS hiding ( null )
 import           Data.Version ( Version(..) )
-import           Data.Proxy
-import           Data.Tagged
-import           Control.Applicative
-import           Control.Monad
-import           Data.Functor
-import           Data.List
 import           System.Exit
-import           System.IO
-import           Control.Concurrent.MVar
-import           Control.Concurrent
 import           System.IO.Error
 import           GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
-import           Foreign.C
-import           System.Process.Internals
-import           Data.IORef
-import qualified Data.List.Split as Split
-import qualified System.Process as Process
-import qualified Data.Char as Char
-import           Text.Read ( readMaybe )
 
 -- well, no Turtle, apparently.
 -- no way to retrieve stdout, stderr and exitcode.
 -- the most generic case, not supported? psshhh.
 import           System.Process hiding ( cwd )
-
-import           Data.Maybe ( maybeToList )
 
 import qualified Filesystem.Path.CurrentOS as Path
 

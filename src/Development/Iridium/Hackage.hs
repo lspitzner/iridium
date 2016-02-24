@@ -7,31 +7,22 @@ where
 
 
 
-import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Maybe
-import           Control.Monad ( mzero, when )
-import           Data.Maybe ( listToMaybe, maybeToList )
-import           Control.Monad.Trans.MultiRWS
-import           Control.Monad
-import           Control.Exception
-import           Data.Version
-import           Distribution.Package ( PackageName(..) )
-import qualified Turtle                 as Turtle
-import           System.Exit
+#include "qprelude/bundle-gamma.inc"
 
+import qualified Turtle                 as Turtle
 import qualified Network.HTTP.Conduit   as HTTP
 import qualified Text.XmlHtml           as Html
-import qualified Data.Text              as Text
 
+import           Control.Exception
+import           System.Exit
 import           System.Process hiding ( cwd )
+
+import           Distribution.Package ( PackageName(..) )
 
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
 import           Development.Iridium.Config
 import           Development.Iridium.Utils
-
-import qualified Data.ByteString               as ByteString
-import qualified Data.ByteString.Lazy          as ByteStringL
 
 
 

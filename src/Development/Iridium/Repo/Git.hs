@@ -5,16 +5,9 @@ where
 
 
 
-import           Control.Monad
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Class
-import           Control.Monad.IO.Class
-import           Control.Monad.Trans.MultiRWS
-import           Control.Monad.Extra ( whenM )
-import           Data.List.Extra
-import           Data.Version
+#include "qprelude/bundle-gamma.inc"
+
 import           System.Process hiding ( cwd )
-import           Data.Char
 
 import           Development.Iridium.Types
 import           Development.Iridium.Utils
@@ -66,7 +59,7 @@ instance Repo GitImpl where
         tagStr <- askTagString
         curOut <- runCommandStdOut "git" ["tag", "-l", tagStr]
         pushLog LogLevelDebug curOut
-        if all isSpace curOut
+        if all Char.isSpace curOut
           then do
             mzeroIfNonzero $ liftIO $
               runProcess "git"
@@ -102,8 +95,8 @@ askTagString
   => m String
 askTagString = do
   tagRawStr <- configReadStringWithDefaultM "$VERSION" ["repository", "git", "release-tag", "content"]
-  vers <- liftM showVersion askPackageVersion
-  return $ replace "$VERSION" vers tagRawStr
+  vers <- liftM Data.Version.showVersion askPackageVersion
+  return $ Data.List.Extra.replace "$VERSION" vers tagRawStr
 
 
 uncommittedChangesCheck
@@ -118,7 +111,7 @@ uncommittedChangesCheck = boolToWarning
                         $ withStack "git status -uno"
                         $ do
   changesRaw <- runCommandStdOut "git" ["status", "-uno", "--porcelain"]
-  let changes = lines changesRaw
+  let changes = List.lines changesRaw
   if null changes
     then
       return True

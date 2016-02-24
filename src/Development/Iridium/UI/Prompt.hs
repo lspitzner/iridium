@@ -9,28 +9,13 @@ where
 
 
 
-import qualified Data.Text     as Text
-import qualified Turtle        as Turtle
-import qualified Control.Foldl as Foldl
+#include "qprelude/bundle-gamma.inc"
 
-import           Data.Text ( Text )
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Class
-import           Control.Monad.IO.Class
-import           Control.Monad
+import qualified Turtle        as Turtle
 
 import           Development.Iridium.Types
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Config
-
-import           Control.Monad.Trans.MultiRWS
-
--- well, fuck Turtle, apparently.
--- no way to retrieve stdout, stderr and exitcode.
--- the most generic case, not supported? psshhh.
-import           System.Process
-import           System.IO ( hFlush, stdout )
-import           Control.Concurrent ( threadDelay )
 
 
 
@@ -43,7 +28,7 @@ askConfirmationOrMZero
 askConfirmationOrMZero = do
   liftIO $ putStr "> Abort imminent; enter 'i' to overwrite and continue> "
   liftIO $ hFlush stdout
-  s <- liftIO $ getLine
+  s <- liftIO $ System.IO.getLine
   case s of
     "i" -> do
       pushLog LogLevelPrint "  (Remember that you can disable individual tests in iridium.yaml)"
@@ -58,7 +43,7 @@ promptYesOrNo
 promptYesOrNo p = do
   liftIO $ putStr $ "> " ++ p ++ "> "
   liftIO $ hFlush stdout
-  s <- liftIO $ getLine
+  s <- liftIO $ System.IO.getLine
   case s of
     "y" -> do
       return ()
@@ -73,5 +58,5 @@ promptSpecific
 promptSpecific p cont = do
   liftIO $ putStr $ "> " ++ p ++ "> "
   liftIO $ hFlush stdout
-  s <- liftIO $ getLine
+  s <- liftIO $ System.IO.getLine
   if s == cont then return () else mzero

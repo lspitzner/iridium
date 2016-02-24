@@ -15,38 +15,21 @@ where
 
 
 
-import qualified Data.Text            as Text
-import qualified Data.Text.IO         as Text.IO
+#include "qprelude/bundle-gamma.inc"
+
 import qualified Turtle               as Turtle
 import qualified Control.Foldl        as Foldl
 import qualified Network.HTTP.Conduit as HTTP
-import qualified Data.ByteString      as ByteString
-import qualified Data.ByteString.Lazy as ByteStringL
 
-import           Control.Exception.Lifted
-import           Control.Monad
-import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Control
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.MultiRWS
 
-import           Data.Text ( Text )
-import           Data.Text.Encoding
 import           Distribution.PackageDescription
-import           Data.Maybe ( maybeToList )
-import           Data.ByteString ( ByteString )
-import qualified Data.ByteString as ByteString
 import           Filesystem.Path.CurrentOS hiding ( null )
 
 import qualified Distribution.Package
 import           Distribution.Version
 
--- no way to retrieve stdout, stderr and exitcode with turtle.
--- the most generic case, not supported? psshhh.
 import           System.Process hiding ( cwd )
-import           Data.List ( nub )
-import           Data.Version ( showVersion )
 
 import           Development.Iridium.CheckState
 import           Development.Iridium.Config
@@ -378,7 +361,7 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
             pName <- liftM (Text.pack . (\(Distribution.Package.PackageName n) -> n)) askPackageName
             let filteredLines = filter (not . (pName `Text.isInfixOf`))
                               $ Text.lines
-                              $ decodeUtf8 cabalConfigContents
+                              $ Text.Encoding.decodeUtf8 cabalConfigContents
             -- pushLog LogLevelDebug $ "Writing n lines to cabal.config: " ++ show (length filteredLines)
             liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
             let testsArg = ["--enable-tests" | testsEnabled]
@@ -425,12 +408,12 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
        , MonadMultiReader Infos m0
        )
     => String
-    -> m0 ByteString
+    -> m0 ByteString.ByteString
   fetchCabalConfig urlStr = do
     pushLog LogLevelInfoVerbose $ "Fetching up-to-date cabal.config from " ++ urlStr
     -- TODO: exception handling
     r <- HTTP.simpleHttp urlStr
-    return $ ByteString.concat $ ByteStringL.toChunks $ r
+    return $ ByteString.concat $ Data.ByteString.Lazy.toChunks $ r
     -- url <- case URI.parseURI urlStr of
     --   Nothing -> do
     --     pushLog LogLevelError "bad URI"

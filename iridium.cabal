@@ -93,6 +93,7 @@ library {
     , transformers-base <0.5
     , monad-control <1.1
     , split <0.3
+    , qualified-prelude
     }
   hs-source-dirs: {
     src
@@ -111,6 +112,8 @@ library {
     FlexibleInstances
     ScopedTypeVariables
     MonadComprehensions
+    NoImplicitPrelude
+    CPP
   }
 }
 
@@ -145,5 +148,6 @@ executable iridium {
     FlexibleInstances
     ScopedTypeVariables
     MonadComprehensions
+    CPP
   }
 }

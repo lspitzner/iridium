@@ -13,22 +13,13 @@ where
 
 
 
-import qualified Data.Text     as Text
+#include "qprelude/bundle-gamma.inc"
+
 import qualified Turtle        as Turtle
 import qualified Control.Foldl as Foldl
 
-import           Data.Text ( Text )
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Class
-import           Control.Monad.IO.Class
-import           Control.Monad
-import           Text.Read ( readMaybe )
-import           Control.Monad.Extra ( whenM )
 import           Control.Monad.Trans.MultiRWS
 import           Control.Monad.Trans.Control
-import           Data.Proxy
-import           Data.Tagged
-import           Data.List
 import           Data.HList.HList
 
 import           Data.HList.ContainsType

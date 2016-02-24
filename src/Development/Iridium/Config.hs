@@ -18,25 +18,13 @@ where
 
 
 
-import           Prelude hiding ( FilePath )
+#include "qprelude/bundle-gamma.inc"
 
 import qualified Data.Yaml             as Yaml
 import qualified Data.Yaml.Pretty      as YamlPretty
 import qualified Turtle.Prelude        as Turtle
-import qualified Data.HashMap.Strict   as HM
-import qualified Data.ByteString.Char8 as BSChar8
-import qualified Data.Text             as Text
-import qualified Data.Vector           as DV
-import qualified Data.List             as List
 
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.IO.Class
 import           Filesystem.Path.CurrentOS
-import           Control.Monad.Trans.MultiRWS
-import           Data.Text ( Text )
-import           Control.Monad
-import           Data.Monoid
-import           Data.Maybe
 
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
@@ -50,7 +38,7 @@ readConfFile
      , MonadPlus m
      )
   => FilePath
-  -> m (HM.HashMap Text Yaml.Value)
+  -> m (HashMapS.HashMap Text Yaml.Value)
 readConfFile path = do
   pushLog LogLevelInfoVerbose $ "Reading config file " ++ encodeString path
   eitherValue <- liftIO $ Yaml.decodeFileEither $ encodeString path
@@ -83,7 +71,7 @@ parseConfigs = do
 
   userConf <- if userConfExists
     then readConfFile userConfPath
-    else return $ HM.empty
+    else return $ HashMapS.empty
 
   localConf <- if localConfExists
     then readConfFile localConfPath
@@ -93,17 +81,17 @@ parseConfigs = do
       Turtle.cp (decodeString defaultPath) localConfPath
       readConfFile localConfPath
 
-  let final = HM.unionWith mergeConfigs localConf userConf
-  let displayStr = unlines
+  let final = HashMapS.unionWith mergeConfigs localConf userConf
+  let displayStr = List.unlines
                  $ fmap ("  " ++)
-                 $ lines
-                 $ BSChar8.unpack
+                 $ List.lines
+                 $ Data.ByteString.Char8.unpack
                  $ YamlPretty.encodePretty YamlPretty.defConfig final
   pushLog LogLevelInfoVerboser $ "Parsed config: \n" ++ displayStr
   return $ Yaml.Object final
 
 mergeConfigs :: Yaml.Value -> Yaml.Value -> Yaml.Value
-mergeConfigs (Yaml.Object o1) (Yaml.Object o2) = Yaml.Object $ HM.unionWith mergeConfigs o1 o2
+mergeConfigs (Yaml.Object o1) (Yaml.Object o2) = Yaml.Object $ HashMapS.unionWith mergeConfigs o1 o2
 mergeConfigs (Yaml.Array a1)  (Yaml.Array a2)  = Yaml.Array  $ a1 <> a2
 mergeConfigs Yaml.Null x = x
 mergeConfigs x _         = x
@@ -122,7 +110,7 @@ configIsTrue ps'' = go ps''
                     Yaml.Bool b -> b
                     _ -> error $ "error in yaml data: expected Bool, got " ++ show v
     go (p:pr) v = case v of
-                    Yaml.Object hm -> case HM.lookup (Text.pack p) hm of
+                    Yaml.Object hm -> case HashMapS.lookup (Text.pack p) hm of
                       Just v' -> go pr v'
                       Nothing -> error $ "error in yaml data: no find element " ++ show p ++ " when looking for config " ++ show ps''
                     _ -> error $ "error in yaml data: expected Object, got " ++ show v
@@ -150,7 +138,7 @@ configReadString ps'' = go ps''
                     Yaml.String b -> Text.unpack b
                     _ -> error $ "error in yaml data: expected String, got " ++ show v
     go (p:pr) v = case v of
-                    Yaml.Object hm -> case HM.lookup (Text.pack p) hm of
+                    Yaml.Object hm -> case HashMapS.lookup (Text.pack p) hm of
                       Just v' -> go pr v'
                       Nothing -> error $ "error in yaml data: no find element " ++ show p ++ " when looking for config " ++ show ps''
                     _ -> error $ "error in yaml data: expected Object, got " ++ show v
@@ -169,7 +157,7 @@ configReadStringMaybe ps'' = go ps''
                     Yaml.String b -> Just $ Text.unpack b
                     _             -> Nothing
     go (p:pr) v = case v of
-                    Yaml.Object hm -> go pr =<< HM.lookup (Text.pack p) hm
+                    Yaml.Object hm -> go pr =<< HashMapS.lookup (Text.pack p) hm
                     _              -> Nothing
 
 configReadStringWithDefaultM
@@ -191,10 +179,10 @@ configReadList ps'' = go ps''
   where
     go :: [String] -> Yaml.Value -> [Yaml.Value]
     go []     v = case v of
-                    Yaml.Array a -> DV.toList a
+                    Yaml.Array a -> Vector.toList a
                     _ -> error $ "error in yaml data: expected Array, got " ++ show v
     go (p:pr) v = case v of
-                    Yaml.Object hm -> case HM.lookup (Text.pack p) hm of
+                    Yaml.Object hm -> case HashMapS.lookup (Text.pack p) hm of
                       Just v' -> go pr v'
                       Nothing -> error $ "error in yaml data: no find element " ++ show p ++ " when looking for config " ++ show ps''
                     _ -> error $ "error in yaml data: expected Object, got " ++ show v

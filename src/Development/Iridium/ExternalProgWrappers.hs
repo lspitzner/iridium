@@ -15,49 +15,29 @@ module Development.Iridium.ExternalProgWrappers
 where
 
 
-import           Prelude hiding ( FilePath )
 
-import qualified Data.Text           as Text
+#include "qprelude/bundle-gamma.inc"
+
 import qualified Turtle              as Turtle
-import qualified Control.Foldl       as Foldl
 import qualified Control.Exception   as C
 
 import qualified Data.Yaml           as Yaml
-import           Control.Monad.Trans.MultiRWS
 import           Control.Monad.Trans.MultiState as MultiState
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Class
-import           Control.Monad.IO.Class
 import           Distribution.PackageDescription
 import           Distribution.Package
 import           Filesystem.Path.CurrentOS hiding ( null )
-import           Data.Version ( Version(..) )
-import           Data.Proxy
-import           Data.Tagged
-import           Control.Applicative
-import           Control.Monad
-import           Data.Functor
-import           Data.List
 import           System.Exit
-import           System.IO
-import           Control.Concurrent.MVar
-import           Control.Concurrent
+import           System.IO ( Handle )
 import           System.IO.Error
 import           GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
 import           Foreign.C
 import           System.Process.Internals
-import           Data.IORef
-import qualified Data.List.Split as Split
 import qualified System.Process as Process
-import qualified Data.Char as Char
-import           Text.Read ( readMaybe )
 
 -- well, no Turtle, apparently.
 -- no way to retrieve stdout, stderr and exitcode.
 -- the most generic case, not supported? psshhh.
 import           System.Process hiding ( cwd )
-
-import           Data.Maybe ( maybeToList )
 
 import qualified Filesystem.Path.CurrentOS as Path
 
@@ -91,7 +71,7 @@ runCommandSuccess
 runCommandSuccess c ps = falseToMZero $ do
   let infoStr = c ++ " " ++ intercalate " " ps
   withStack infoStr $ do
-    outListRef <- liftIO $ newIORef []
+    outListRef <- liftIO $ IORef.newIORef []
     exitCode <- withStack "" $ do -- the additional stack elem is for
                                   -- output display stuff.
       -- this is evil, because we discard states down there.
@@ -103,7 +83,7 @@ runCommandSuccess c ps = falseToMZero $ do
                        $ MultiState.withMultiStateA s1
                        $ MultiState.withMultiStateA s2
                        $ do
-            liftIO $ atomicModifyIORef outListRef (\x -> (l:x, ()))
+            liftIO $ IORef.atomicModifyIORef outListRef (\x -> (l:x, ()))
             replaceStackTop l
 
       liftIO $ observeCreateProcessWithExitCode
@@ -118,7 +98,7 @@ runCommandSuccess c ps = falseToMZero $ do
         return True
       ExitFailure _ -> do
         pushLog LogLevelPrint infoStr
-        outLines <- liftIO $ readIORef outListRef
+        outLines <- liftIO $ IORef.readIORef outListRef
         reverse outLines `forM_` pushLog LogLevelPrint
         logStack
         return False
@@ -183,7 +163,7 @@ getExternalProgramVersion prog = do
     readShellProcessWithExitCode prog ["--version"]
   case exitCode of
     ExitSuccess -> do
-      case lines stdOut of
+      case List.lines stdOut of
         (line:_) -> case takeWhile (`elem` ".0123456789")
                        $ dropWhile (not . Char.isNumber) line of
           "" -> err
@@ -210,9 +190,9 @@ observeCreateProcessWithExitCode cp input stdoutHandler stderrHandler = do
     withCreateProcess_ "observeCreateProcessWithExitCode" cp_opts $
       \(Just inh) (Just outh) (Just errh) ph -> do
 
-        let processStream :: Handle -> (String -> IO ()) -> IO ()
+        let processStream :: System.IO.Handle -> (String -> IO ()) -> IO ()
             processStream h f = do
-              catchIOError (forever $ hGetLine h >>= f) (\e -> unless (isEOFError e) (ioError e))
+              catchIOError (forever $ System.IO.hGetLine h >>= f) (\e -> unless (isEOFError e) (ioError e))
 
         -- fork off threads to start consuming stdout & stderr
         withForkWait  (processStream outh stdoutHandler) $ \waitOut ->
@@ -220,9 +200,9 @@ observeCreateProcessWithExitCode cp input stdoutHandler stderrHandler = do
 
           -- now write any input
           unless (null input) $
-            ignoreSigPipe $ hPutStr inh input
+            ignoreSigPipe $ System.IO.hPutStr inh input
           -- hClose performs implicit hFlush, and thus may trigger a SIGPIPE
-          ignoreSigPipe $ hClose inh
+          ignoreSigPipe $ System.IO.hClose inh
 
           -- wait on the output
           waitOut
@@ -244,7 +224,7 @@ withForkWait async body = do
   C.mask $ \restore -> do
     tid <- forkIO $ C.try (restore async) >>= putMVar waitVar
     let wait = takeMVar waitVar >>= either C.throwIO return
-    restore (body wait) `C.onException` killThread tid
+    restore (body wait) `C.onException` Concurrent.killThread tid
 withCreateProcess_
   :: String
   -> CreateProcess
@@ -268,9 +248,9 @@ cleanupProcess (mb_stdin, mb_stdout, mb_stderr,
     -- Note, it's important that other threads that might be reading/writing
     -- these handles also get killed off, since otherwise they might be holding
     -- the handle lock and prevent us from closing, leading to deadlock.
-    maybe (return ()) (ignoreSigPipe . hClose) mb_stdin
-    maybe (return ()) hClose mb_stdout
-    maybe (return ()) hClose mb_stderr
+    maybe (return ()) (ignoreSigPipe . System.IO.hClose) mb_stdin
+    maybe (return ()) System.IO.hClose mb_stdout
+    maybe (return ()) System.IO.hClose mb_stderr
     -- terminateProcess does not guarantee that it terminates the process.
     -- Indeed on Unix it's SIGTERM, which asks nicely but does not guarantee
     -- that it stops. If it doesn't stop, we don't want to hang, so we wait

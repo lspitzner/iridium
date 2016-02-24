@@ -16,15 +16,9 @@ where
 
 
 
-import qualified System.Unsafe as Unsafe
-import           Data.IORef
-import           Control.Monad
-import           Control.Monad.IO.Class
-
-import           Control.Monad.Trans.MultiRWS
+#include "qprelude/bundle-gamma.inc"
 
 import           System.Console.ANSI
-import           System.IO
 
 import           Development.Iridium.Types
 
@@ -134,7 +128,7 @@ pushLog
   -> m ()
 pushLog level message = checkWhenLevel level $ do
   flushPrepared
-  forM_ (lines message) $
+  forM_ (List.lines message) $
     (liftIO . putStrLn =<<) . getIndentLine
 
 pushLogPrepare

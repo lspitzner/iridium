@@ -21,21 +21,14 @@ module Development.Iridium.Types
 where
 
 
-import           Prelude hiding ( FilePath )
+
+#include "qprelude/bundle-gamma.inc"
 
 import qualified Data.Yaml           as Yaml
-import           Control.Monad.Trans.MultiRWS
 import           Control.Monad.Trans.MultiState
-import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Class
 import           Data.HList.HList
-import           Control.Monad.IO.Class
 import           Distribution.PackageDescription
 import           Data.Version ( Version(..) )
-import           Data.Proxy
-import           Data.Tagged
-import           Control.Applicative
-import           Control.Monad
 import           Data.HList.ContainsType
 import           Control.Monad.Trans.Control
 import           Control.Monad.Base
