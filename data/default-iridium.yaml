@@ -90,12 +90,12 @@ repository:
   type: none # none | git
   git:
     display-current-branch: True
-    release-tag: # NOT YET SUPPORTED !
+    release-tag:
       enabled: True
       content: "$VERSION"
       # NOT YET SUPPORTED
-      # params: []
-    push-remote: # NOT YET SUPPORTED !
+      # params: [] # NOT YET SUPPORTED !
+    push-remote:
       # push the current branch (and the tag, if configured) to
       # a remote repo.
       enabled: True
