@@ -1,3 +1,6 @@
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ViewPatterns #-}
+
 module Main
   ( main
   )
@@ -54,7 +57,9 @@ main = do
         liftIO $ putStrLn $ GetOpt.usageInfo initNote optDescrs
         mzero
       printVersion = do
-        liftIO $ putStrLn $ "iridium version " ++ showVersion version
+        liftIO $ putStrLn $ "iridium version "
+                         ++ showVersion version
+                         ++ ", (c) 2016 Lennart Spitzner"
         mzero
     when (not $ null errs)           printHelp
     when (not $ null others)         printHelp
