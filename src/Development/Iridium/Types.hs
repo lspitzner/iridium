@@ -127,8 +127,7 @@ class Repo a where
                          , MonadMultiReader Config m
                          , MonadMultiState LogState m
                          )
-                      => a
-                      -> m ()
+                      => a -> m ()
   -- | (Configured) (repository-type-specific) actions
   --   that will be taken, e.g. "Tag the current commit"
   repo_ActionSummary  :: ( MonadMultiReader Config m

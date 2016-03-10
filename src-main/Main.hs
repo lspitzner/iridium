@@ -79,12 +79,10 @@ main = do
               ++ [ LogLevelInfoVerboser | verbosity > 2 ]
               ++ [ LogLevelInfoSpam     | verbosity > 3 ]
     setLogMask levels
-    config <- parseConfigs
     let argConfig = if OptionDryRun `elem` opts
           then Yaml.Object $ HM.singleton (Text.pack "process")
              $ Yaml.Object $ HM.singleton (Text.pack "dry-run")
              $ Yaml.Bool   $ True
           else Yaml.Object $ HM.empty
-    let mergedConfig = mergeConfigs argConfig config
-    withMultiReader mergedConfig $ iridiumMain
+    iridiumMain argConfig
   return ()

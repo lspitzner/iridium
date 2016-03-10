@@ -206,22 +206,27 @@ askGlobalConfirmation existErrors = do
     then promptSpecific "There are errors; write \"override\" to (try) continue anyways " "override"
     else promptYesOrNo "Continue [y]es [n]o? "
 
-iridiumMain :: MultiRWST '[Config] '[] '[LogState] (MaybeT IO) ()
-iridiumMain = do
-  infos <- retrieveInfos
-  withMultiReader infos $ withMultiStateA initCheckState $ do
-    runChecks
-    displaySetting      <- configIsTrueM     ["process", "print-summary"]
-    existWarnings <- liftM ((/=0) . _check_warningCount) mGet
-    existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
-    when displaySetting displaySummary
-    whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
-      pushLog LogLevelPrint ""
-      configDecideStringM ["process", "confirmation"]
-        [ ("confirm-always"    , when (True                        ) $ askGlobalConfirmation existErrors)
-        , ("confirm-on-warning", when (existWarnings || existErrors) $ askGlobalConfirmation existErrors)
-        , ("confirm-on-error"  , when (                 existErrors) $ askGlobalConfirmation existErrors)
-        ]
-      repoPerformAction
-      uploadPackage
-      whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs
+iridiumMain
+  :: Config
+  -> MultiRWST '[] '[] '[LogState] (MaybeT IO) ()
+iridiumMain argConfig = do
+  fileConfig <- parseConfigs
+  let mergedConfig = mergeConfigs argConfig fileConfig
+  withMultiReader mergedConfig $ do
+    infos <- retrieveInfos
+    withMultiReader infos $ withMultiStateA initCheckState $ do
+      runChecks
+      displaySetting      <- configIsTrueM     ["process", "print-summary"]
+      existWarnings <- liftM ((/=0) . _check_warningCount) mGet
+      existErrors   <- liftM ((/=0) . _check_errorCount  ) mGet
+      when displaySetting displaySummary
+      whenM (not `liftM` configIsTrueM ["process", "dry-run"]) $ do
+        pushLog LogLevelPrint ""
+        configDecideStringM ["process", "confirmation"]
+          [ ("confirm-always"    , when (True                        ) $ askGlobalConfirmation existErrors)
+          , ("confirm-on-warning", when (existWarnings || existErrors) $ askGlobalConfirmation existErrors)
+          , ("confirm-on-error"  , when (                 existErrors) $ askGlobalConfirmation existErrors)
+          ]
+        repoPerformAction
+        uploadPackage
+        whenM (configIsTrueM ["process", "upload-docs"]) uploadDocs

@@ -28,6 +28,8 @@ import qualified Data.ByteString.Char8 as BSChar8
 import qualified Data.Text             as Text
 import qualified Data.Vector           as DV
 import qualified Data.List             as List
+import qualified Data.ByteString       as BS
+import qualified Data.Vector
 
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.IO.Class
@@ -37,6 +39,7 @@ import           Data.Text ( Text )
 import           Control.Monad
 import           Data.Monoid
 import           Data.Maybe
+import           Data.Ord ( comparing )
 
 import           Development.Iridium.UI.Console
 import           Development.Iridium.Types
@@ -50,7 +53,7 @@ readConfFile
      , MonadPlus m
      )
   => FilePath
-  -> m (HM.HashMap Text Yaml.Value)
+  -> m Config
 readConfFile path = do
   pushLog LogLevelInfoVerbose $ "Reading config file " ++ encodeString path
   eitherValue <- liftIO $ Yaml.decodeFileEither $ encodeString path
@@ -59,11 +62,83 @@ readConfFile path = do
       pushLog LogLevelError $ "Error reading config file " ++ encodeString path
       pushLog LogLevelError $ show e
       mzero
-    Right (Yaml.Object m) -> return m
+    Right o@Yaml.Object{} -> return o
     Right _ -> do
       pushLog LogLevelError $ "Error reading config file: expecting YAML object."
       pushLog LogLevelError $ "(Parsing was successful but returned something else,\nlike a list. or smth.)"
       mzero
+
+writeConfigToFile :: String -> Config -> IO ()
+writeConfigToFile path config =
+  writeFile
+    path
+    (headerComment ++ "\n---\n" ++ unlines (go Nothing 0 config) ++ "...\n")
+  where
+    headerComment :: String
+    headerComment = unlines
+                  $ map ("# " ++)
+                  $ [ "see https://github.com/lspitzner/iridium"
+                    , ""
+                    , "note that you can add a user-global .iridium.yaml"
+                    , "into $HOME, containing e.g."
+                    , ""
+                    , "---"
+                    , "setup:"
+                    , "  compiler-paths:"
+                    , "    ghc-7.10.3: /opt/ghc-7.10.3/bin/ghc"
+                    , "    ghc-7.8.4:  /opt/ghc-7.8.4/bin/ghc"
+                    , ""
+                    , "  hackage:"
+                    , "    username: user"
+                    , "..."
+                    , ""
+                    ]
+    -- The reason for this custom pretty-printing is that encodePretty from
+    -- the yaml package formats strings horribly, which
+    -- makes the documentation elements more annoying to parse than they
+    -- are helpful.
+    go :: Maybe String -> Int -> Config -> [String]
+    go firstLine indent (Yaml.Object m)
+      = maybe id (:) firstLine -- (firstLine:)
+      $ List.sortBy (comparing fst) (HM.toList m) >>= \(k, v) ->
+        go (Just $ replicate indent ' ' ++ Text.unpack k ++ ":") (indent+2) v
+    go firstLine indent (Yaml.Array  a)
+      = maybe id (:) firstLine
+      $ Data.Vector.toList a >>= \v ->
+        case go Nothing 0 v of
+          [] -> []
+          (x:xr) -> (replicate indent ' ' ++ "- " ++ x)
+                  : (fmap ((replicate (indent+2) ' ')++) xr)        
+    go firstLine indent (Yaml.String s)
+      = case (lines $ Text.unpack s, firstLine) of
+          ([], Just l)  ->
+            [l ++ " \"\""]
+          ([x], Just l) | '"' `notElem` x -> -- " this editor has highlighting problems..
+            [l ++ " " ++ show x]
+          (xs, Just l)  ->
+            ((l ++ " |"):)
+            $ fmap ((replicate indent ' ') ++)
+            $ xs
+          (xs, Nothing) ->
+            fmap ((replicate indent ' ') ++) xs
+    go firstLine indent (Yaml.Number i)
+      = case firstLine of
+          Just l -> [l ++ " " ++ show i]
+          Nothing -> [replicate indent ' ' ++ show i]
+    go firstLine indent (Yaml.Bool b)
+      = case firstLine of
+          Just l -> [l ++ " " ++ show b]
+          Nothing -> [replicate indent ' ' ++ show b]
+    go _firstLine _indent Yaml.Null
+      = error "Null"
+
+determineConfFromStuff
+  :: ( MonadIO m
+     , MonadMultiState LogState m
+     )
+  => m Config
+determineConfFromStuff = do
+  return $ Yaml.Object $ HM.empty -- TODO
 
 parseConfigs
   :: ( MonadIO m
@@ -76,32 +151,58 @@ parseConfigs = do
 
   home <- Turtle.home
   cwd  <- Turtle.pwd
-  let userConfPath  = home </> decodeString ".iridium.yaml"
-  let localConfPath = cwd  </> decodeString "iridium.yaml"
-  userConfExists  <- Turtle.testfile $ userConfPath
-  localConfExists <- Turtle.testfile $ localConfPath
+  let userConfPath        = home </> decodeString ".iridium.yaml"
+  let userDefaultConfPath = home </> decodeString ".iridium-default.yaml"
+  let localConfPath       = cwd  </> decodeString "iridium.yaml"
+  staticDefaultPath   <- liftIO $ getDataFileName "default-iridium.yaml"
+  userConfExists        <- Turtle.testfile $ userConfPath
+  userDefaultConfExists <- Turtle.testfile $ userDefaultConfPath
+  localConfExists       <- Turtle.testfile $ localConfPath
 
   userConf <- if userConfExists
-    then readConfFile userConfPath
-    else return $ HM.empty
+    then do
+      pushLog LogLevelInfoVerbose $ "Reading user config file from "
+                                 ++ encodeString userConfPath
+      readConfFile userConfPath
+    else return $ Yaml.Object $ HM.empty
 
   localConf <- if localConfExists
     then readConfFile localConfPath
     else do
-      defaultPath <- liftIO $ getDataFileName "default-iridium.yaml"
+      userDefaultConf <- if userDefaultConfExists
+        then do
+          pushLog LogLevelInfoVerbose $ "Reading user default config from "
+                                     ++ encodeString userDefaultConfPath
+          readConfFile userDefaultConfPath
+        else return $ Yaml.Object $ HM.empty
+      calculatedConf <- determineConfFromStuff
+      staticDefaultConf <- do
+        pushLog LogLevelInfoVerbose $ "Reading static default config from "
+                                   ++ staticDefaultPath
+        readConfFile (decodeString staticDefaultPath)
+
+      let combinedConfig = mergeConfigs
+                           userDefaultConf   -- 1. priority
+                         $ mergeConfigs
+                           calculatedConf    -- 2. priority
+                           staticDefaultConf -- 3. priority
+
       pushLog LogLevelInfo $ "Creating default iridium.yaml."
-      Turtle.cp (decodeString defaultPath) localConfPath
+      liftIO $ writeConfigToFile (encodeString localConfPath) combinedConfig
+
+      pushLog LogLevelDebug $ configReadString ["iridium-help"] combinedConfig
       readConfFile localConfPath
 
-  let final = HM.unionWith mergeConfigs localConf userConf
+  let final = mergeConfigs localConf userConf
   let displayStr = unlines
                  $ fmap ("  " ++)
                  $ lines
                  $ BSChar8.unpack
                  $ YamlPretty.encodePretty YamlPretty.defConfig final
   pushLog LogLevelInfoVerboser $ "Parsed config: \n" ++ displayStr
-  return $ Yaml.Object final
+  return $ final
 
+-- left-preferring merge; deep merge for objects/arrays
 mergeConfigs :: Yaml.Value -> Yaml.Value -> Yaml.Value
 mergeConfigs (Yaml.Object o1) (Yaml.Object o2) = Yaml.Object $ HM.unionWith mergeConfigs o1 o2
 mergeConfigs (Yaml.Array a1)  (Yaml.Array a2)  = Yaml.Array  $ a1 <> a2
