@@ -40,6 +40,8 @@ checks:
     enabled: True
     use-nightly: False
     # blacklist: [omit, check, for, these, packages]
+  lower-bounds-exist:
+    enabled: True
   upper-bounds-exist:
     enabled: True
   changelog:

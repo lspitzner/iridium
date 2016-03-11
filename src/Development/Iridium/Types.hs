@@ -44,30 +44,6 @@ import qualified Filesystem.Path.CurrentOS as Path
 
 
 
--- these are ugly orphans, i am aware. FIXME!
-instance MonadIO m => MonadIO (MultiRWST r w s m) where
-  liftIO = lift . liftIO
-instance MonadIO m => MonadIO (MultiStateT s m) where
-  liftIO = lift . liftIO
-instance (Functor m, MonadPlus m, Alternative m) => Alternative (MultiRWST r w s m) where
-  empty   = lift empty
-  x <|> y = MultiRWST $ runMultiRWSTRaw x <|> runMultiRWSTRaw y
-instance (MonadPlus m, Monad m) => MonadPlus (MultiRWST r w s m) where
-  mzero = lift mzero
-  mplus x y = MultiRWST $ mplus (runMultiRWSTRaw x) (runMultiRWSTRaw y)
-instance MonadBase b m => MonadBase b (MultiRWST r w s m) where
-  liftBase = lift . liftBase
-instance MonadTransControl (MultiRWST r w s) where
-  type StT (MultiRWST r w s) a = (a, (HList r, HList w, HList s))
-  liftWith f = MultiRWST $ liftWith $ \s -> f $ \r -> s $ runMultiRWSTRaw r
-  restoreT = MultiRWST . restoreT
-
-instance MonadBaseControl b m => MonadBaseControl b (MultiRWST r w s m) where
-  type StM (MultiRWST r w s m) a = ComposeSt (MultiRWST r w s) m a
-  liftBaseWith = defaultLiftBaseWith
-  restoreM = defaultRestoreM
-
-
 data LogLevel = LogLevelSilent
               | LogLevelPrint -- like manual output; should never be filtered
               | LogLevelDebug
