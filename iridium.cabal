@@ -78,7 +78,7 @@ library {
     , unsafe                 >=0.0      && <0.1
     , transformers           >=0.3.0.0  && <0.5
     , system-filepath        >=0.4.13.4 && <0.5
-    , unordered-containers   >=0.2.6.0  && <0.3
+    , unordered-containers   >=0.2.5.1  && <0.3
     , multistate             >=0.7.0.0  && <0.8
     , Cabal                  >=1.22.5.0 && <1.23
     , http-conduit           >=2.1.8    && <2.2
@@ -123,7 +123,7 @@ executable iridium {
     , base                   >=4.7      && <4.9
     , yaml                   >=0.8.16   && <0.9
     , transformers           >=0.3.0.0  && <0.5
-    , unordered-containers   >=0.2.6.0  && <0.3
+    , unordered-containers   >=0.2.5.1  && <0.3
     , multistate             >=0.7.0.0  && <0.8
     , extra                  >=1.4.3    && <1.5
     , text                   >=1.2.2.0  && <1.3
