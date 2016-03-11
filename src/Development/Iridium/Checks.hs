@@ -415,7 +415,7 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
             liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
             let testsArg = ["--enable-tests" | testsEnabled]
             runCommandSuccessCabal ["clean"]
-            runCommandSuccessCabal $ ["install", "--dep", "--force-reinstalls", "--dry-run"] ++ testsArg
+            runCommandSuccessCabal $ ["--no-require-sandbox", "--ignore-sandbox", "install", "--dep", "--global", "--dry-run"] ++ testsArg
           pushLog LogLevelInfo $ "Cleanup (cabal.config)"
           unless alreadyExists $ Turtle.rm cabalConfigPath
           when alreadyExists $ Turtle.mv cabalConfigBackupPath cabalConfigPath
