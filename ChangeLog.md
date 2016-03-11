@@ -1,5 +1,11 @@
 # Revision history for iridium
 
+## 0.1.5.0  -- 2016-03-11
+
+  * Add package-sdist check
+
+  * Prepare non-static default config
+
 ## 0.1.4.0  -- 2016-02-22
 
   * Fix various bugs
