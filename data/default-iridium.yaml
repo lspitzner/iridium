@@ -81,6 +81,8 @@ checks:
     # blacklist: [omit, check, for, these, packages] # not supported yet
   upper-bounds-exist:
     enabled: True
+  lower-bounds-exist:
+    enabled: True
   changelog:
     enabled: True
     location: ChangeLog.md

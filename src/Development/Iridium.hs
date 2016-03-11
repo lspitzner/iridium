@@ -144,6 +144,7 @@ runChecks = do
   -- if possible.
   Checks.compile
   whenM (configIsEnabledM ["checks", "hlint"])                Checks.hlint
+  whenM (configIsEnabledM ["checks", "lower-bounds-exist"]) $ Checks.lowerBounds
   whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ Checks.upperBounds
   whenM (return True)                                         Checks.packageCheck
   whenM (configIsEnabledM ["checks", "package-sdist"])      $ Checks.packageSDist

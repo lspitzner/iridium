@@ -4,6 +4,7 @@ module Development.Iridium.Checks
   ( packageCheck
   , hlint
   , changelog
+  , lowerBounds
   , upperBounds
   , remoteVersion
   , compile
@@ -128,6 +129,39 @@ changelog = boolToWarning
           pushLog LogLevelError $ "changelog does not contain " ++ currentVersionStr
           return False
 
+lowerBounds
+  :: ( MonadIO m
+     , MonadMultiState LogState m
+     , MonadMultiState CheckState m
+     , MonadMultiReader Config m
+     , MonadMultiReader Infos m
+     )
+  => m ()
+lowerBounds = boolToWarning
+            $ runCheck "Checking that all dependencies have a lower bound"
+            $ do
+  buildInfos <- askAllBuildInfo
+  pName <- askPackageName
+  let missingBounds
+        = [ name
+          | info <- buildInfos
+          , Distribution.Package.Dependency name range <- targetBuildDepends info
+          , name /= pName -- ignore dependencies on the package's library
+          , let intervals = asVersionIntervals range
+          , let badLowerBound = LowerBound (Version [0] []) InclusiveBound
+          , case intervals of
+              []                                              -> True
+              xs | any (\(lwr, _) -> lwr == badLowerBound) xs -> True
+              _                                               -> False
+          ]
+  if null missingBounds
+    then return True
+    else do
+      pushLog LogLevelError $ "Found dependencies without a lower bound:"
+      missingBounds `forM_` \(Distribution.Package.PackageName n) ->
+        pushLog LogLevelError $ "    " ++ n
+      return False
+
 upperBounds
   :: ( MonadIO m
      , MonadMultiState LogState m
@@ -137,26 +171,26 @@ upperBounds
      )
   => m ()
 upperBounds = boolToWarning
-            $ runCheck "Checking that all dependencies have upper bounds"
+            $ runCheck "Checking that all dependencies have an upper bound"
             $ do
   buildInfos <- askAllBuildInfo
   pName <- askPackageName
-  let missingUpperBounds
+  let missingBounds
         = [ name
           | info <- buildInfos
           , Distribution.Package.Dependency name range <- targetBuildDepends info
           , name /= pName -- ignore dependencies on the package's library
           , let intervals = asVersionIntervals range
           , case intervals of
-              []                  -> True
-              [(_, NoUpperBound)] -> True
-              _                   -> False
+              []                                             -> True
+              xs | any (\(_, upr) -> upr == NoUpperBound) xs -> True
+              _                                              -> False
           ]
-  if null missingUpperBounds
+  if null missingBounds
     then return True
     else do
-      pushLog LogLevelError $ "Found dependencies without upper bounds:"
-      missingUpperBounds `forM_` \(Distribution.Package.PackageName n) ->
+      pushLog LogLevelError $ "Found dependencies without an upper bound:"
+      missingBounds `forM_` \(Distribution.Package.PackageName n) ->
         pushLog LogLevelError $ "    " ++ n
       return False
 
