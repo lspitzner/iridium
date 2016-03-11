@@ -1,8 +1,13 @@
 # Revision history for iridium
 
+## 0.1.5.2  -- 2016-03-11
+
+  * Improve stackage upper-bound check error output
+
 ## 0.1.5.1  -- 2016-03-11
 
   * Fix iridium package pvp compliance (lower bounds)
+  * First hackage release
 
 ## 0.1.5.0  -- 2016-03-11
 
