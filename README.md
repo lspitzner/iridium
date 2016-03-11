@@ -20,6 +20,12 @@ Steps currently include:
 
 - Uploading of both the package itself and the documentation.
 
+iridium does all testing locally, in contrast to e.g. github's travis. 
+
+The output on errors is certainly not optimal; for example the stackage
+upper bound checking will print a typical, hard-to-consume cabal hell error
+message. iridium's aim is only to note _if_ something is wrong.
+
 # Usage
 
 Install iridium, run iridium in the directory containing the cabal package.
@@ -27,28 +33,31 @@ It won't do anything without confirmation.
 
 ~~~~
 $ iridium
-Checking compilation and tests with different compiler versions
+Checking compilation with different compiler versions
   Checking with compiler ghc-7.8.4:                                   clear.
-  Checking with compiler ghc-7.10.3:                                  clear.
 Checking upper bounds using stackage:                                 clear.
 Checking documentation:                                               clear.
 Checking basic compilation:                                           clear.
-Checking that all dependencies have upper bounds:                     clear.
+Checking that all dependencies have a lower bound:                    clear.
+Checking that all dependencies have an upper bound:                   clear.
 Checking package validity:                                            clear.
+Testing the source distribution package:                              clear.
+Testing if the changelog mentions the latest version:                 clear.
 Comparing local version to hackage version:                           clear.
 [git]
   Testing for uncommitted changes:                                    clear.
 Summary:
-  Package:         iridium
-  Version:         0.1.2.0
-  Warning count:   0
-  Error   count:   0
-  Not -Wall clean:
+  Package:                iridium
+  Version:                0.1.5.1
+  Warning count:          0
+  Error   count:          0
+  Not -Wall clean:        []
   [git]
-    Branch:        master
-
-  Actions:         Upload package, Upload documentation
-
+    Branch:               master
+  Actions:                Tag the current commit with "0.1.5.1"
+                          Push current branch and tag to upstream repo
+                          Upload package
+                          Upload documentation
 > Continue [y]es [n]o? > y
 Performing upload..
 Building source dist for iridium-0.1.2.0...
