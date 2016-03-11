@@ -94,6 +94,7 @@ replaceStackTop s = do
      $ take 76
      $ intercalate ": "
      $ reverse
+     $ fmap (take 20)
      $ newStack
 
 logStack
