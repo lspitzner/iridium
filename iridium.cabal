@@ -48,7 +48,7 @@ extra-source-files: {
 
 source-repository head {
   type: git
-  location: git@github.com:lspitzner/iridium.git
+  location: https://github.com/lspitzner/iridium.git
 }
 
 library {
