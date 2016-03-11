@@ -89,6 +89,9 @@ An `iridium.yaml` file will be created on first invocation.
 | hlint | `forM_ hs-source-dirs $ \dir -> (\dir -> call "hlint " ++ dir)` |
 | testsuites | run `cabal test` when compiling. |
 | upper-bounds-stackage | Check that upper bounds are up-to-date by using a stackage cabal.config. This is not the best way, because not all packages are on stackage, but it is better than nothing. |
-| upper-bounds-exist | Check that all dependencies have upper bounds. (You _do_ want to conform with the PVP, right?) |
+| lower-bounds-exist | Check that all dependencies have a lower bound. |
+| upper-bounds-exist | Check that all dependencies have an upper bound. (You _do_ want to conform with the PVP, right?) |
 | documentation | Check that haddocks can be created without problems (calling `cabal haddock`). |
 | changelog | Check if the changelog mentions (contains) the latest version. |
+| package-sdist | Check that all necessary stuff is contained in the source distribution by installing the packaged package. |
+| compiler-versions | Compile and run tests for several compiler versions (other than the default compiler on $PATH). |

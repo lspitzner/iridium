@@ -79,9 +79,9 @@ checks:
     enabled: False
     use-nightly: False
     # blacklist: [omit, check, for, these, packages] # not supported yet
-  upper-bounds-exist:
-    enabled: True
   lower-bounds-exist:
+    enabled: True
+  upper-bounds-exist:
     enabled: True
   changelog:
     enabled: True
