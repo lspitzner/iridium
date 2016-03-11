@@ -186,9 +186,9 @@ displaySummary = do
       repoDisplaySummary
     uploadEnabled <- configIsTrueM ["process", "upload-docs"]
     repoActions <- repoActionSummary
-    let actions = ["Upload package"]
+    let actions = repoActions
+               ++ ["Upload package"]
                ++ ["Upload documentation" | uploadEnabled]
-               ++ repoActions
     pushLog LogLevelPrint ""
     pushLog LogLevelPrint $ "Actions:                " ++ intercalate
                           "\n                        " actions
