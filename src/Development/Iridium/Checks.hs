@@ -10,6 +10,7 @@ module Development.Iridium.Checks
   , documentation
   , compileVersions
   , upperBoundsStackage
+  , packageSDist
   )
 where
 
@@ -55,6 +56,7 @@ import           Development.Iridium.UI.Console
 import           Development.Iridium.UI.Prompt
 import           Development.Iridium.Utils
 import           Development.Iridium.ExternalProgWrappers
+
 
 
 
@@ -110,7 +112,7 @@ changelog = boolToWarning
           $ runCheck "Testing if the changelog mentions the latest version"
           $ do
   pathRaw <- configReadStringM ["checks", "changelog", "location"]
-  Infos cwd pdesc _ _ <- mAsk
+  cwd <- liftM _i_cwd mAsk
   let path = cwd </> decodeString pathRaw
   exists <- Turtle.testfile path
   if (not exists)
@@ -119,11 +121,7 @@ changelog = boolToWarning
       return False
     else do
       changelogContentLines <- Turtle.fold (Turtle.input path) Foldl.list
-      let currentVersionStr :: String
-            = showVersion
-            $ Distribution.Package.pkgVersion
-            $ package
-            $ packageDescription pdesc
+      currentVersionStr <- liftM showVersion askPackageVersion
       if any (Text.pack currentVersionStr `Text.isInfixOf`) changelogContentLines
         then return True
         else do
@@ -446,3 +444,31 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
     --     let body = HTTP.rspBody x
     --     pushLog LogLevelInfoVerbose $ "Retrieved " ++ show (ByteString.length body) ++ " bytes."
     --     return $ body
+
+packageSDist
+  :: forall m
+   . ( MonadIO m
+     , MonadPlus m
+     , MonadMultiState LogState m
+     , MonadMultiState CheckState m
+     , MonadMultiReader Infos m
+     , MonadMultiReader Config m
+     )
+  => m ()
+packageSDist = withStack "package sdist" $ boolToError $ do
+
+  runCheck "Testing the source distribution package" $ do
+
+    Distribution.Package.PackageName pName <- askPackageName
+    currentVersionStr <- liftM showVersion askPackageVersion
+      
+    buildtool    <- configReadStringM ["setup", "buildtool"]
+    case buildtool of
+      "cabal" -> mzeroToFalse $ do
+        runCommandSuccessCabal ["sdist"]
+        let sdistName = pName ++ "-" ++ currentVersionStr ++ ".tar.gz"
+        runCommandSuccessCabal ["install", "dist/" ++ sdistName]
+      "stack" -> do
+        pushLog LogLevelError "TODO: stack upper bound check"
+        mzero
+      _ -> mzero

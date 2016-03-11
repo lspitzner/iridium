@@ -127,8 +127,7 @@ retrieveInfos = do
 
 
 runChecks
-  :: ( m ~ MultiRWST r w s m0
-     , MonadIO m0
+  :: ( MonadIO m0
      , MonadPlus m0
      , MonadBaseControl IO m0
      , ContainsType LogState s
@@ -136,7 +135,7 @@ runChecks
      , ContainsType Config r
      , ContainsType Infos r
      )
-  => m ()
+  => MultiRWST r w s m0 ()
 runChecks = do
   whenM (configIsEnabledM ["checks", "compiler-versions"])  $ Checks.compileVersions
   whenM (configIsEnabledM ["checks", "upper-bounds-stackage"]) $ Checks.upperBoundsStackage
@@ -147,6 +146,7 @@ runChecks = do
   whenM (configIsEnabledM ["checks", "hlint"])                Checks.hlint
   whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ Checks.upperBounds
   whenM (return True)                                         Checks.packageCheck
+  whenM (configIsEnabledM ["checks", "package-sdist"])      $ Checks.packageSDist
   whenM (configIsEnabledM ["checks", "changelog"])          $ Checks.changelog
   whenM (return True)                                         Checks.remoteVersion
   whenM (return True)                                         repoRunChecks

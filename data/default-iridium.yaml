@@ -60,6 +60,14 @@ checks:
 
     # whitelist: [only, these, tests] # not supported yet
     # blacklist: [omit, these, tests] # not supported yet
+
+  package-sdist-help: |
+    Check that the created source distribution package will
+    actually work (for other users). This can for example
+    be not the case when you fail to mention specific files
+    in your package description.
+  package-sdist:
+    enabled: True
   
   upper-bounds-stackage-help: |
     if you are completely unlucky, this might _overwrite_

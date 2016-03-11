@@ -28,11 +28,13 @@ checks:
   hlint:
     enabled: False
   testsuites:
-    enabled: True
+    enabled: False
   compiler-warnings:
     enabled: True
     # whitelist: [only, these, tests]
     # blacklist: [omit, these, tests]
+  package-sdist:
+    enabled: True
   upper-bounds-stackage:
     # for existing upper bounds
     enabled: True
@@ -48,8 +50,8 @@ checks:
     compilers:
       - compiler: ghc
         version: 7.8.4
-      - compiler: ghc
-        version: 7.10.3
+      # - compiler: ghc
+      #   version: 7.10.3
   documentation:
     enabled: True
 

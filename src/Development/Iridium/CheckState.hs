@@ -71,6 +71,7 @@ withStack s m = do
      $ take 76
      $ intercalate ": "
      $ reverse
+     $ fmap (take 20)
      $ newStack
   r <- m
   s2 <- mGet
