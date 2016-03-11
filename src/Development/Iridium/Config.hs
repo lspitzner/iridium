@@ -190,7 +190,6 @@ parseConfigs = do
       pushLog LogLevelInfo $ "Creating default iridium.yaml."
       liftIO $ writeConfigToFile (encodeString localConfPath) combinedConfig
 
-      pushLog LogLevelDebug $ configReadString ["iridium-help"] combinedConfig
       readConfFile localConfPath
 
   let final = mergeConfigs localConf userConf
@@ -228,14 +227,27 @@ configIsTrue ps'' = go ps''
                       Nothing -> error $ "error in yaml data: no find element " ++ show p ++ " when looking for config " ++ show ps''
                     _ -> error $ "error in yaml data: expected Object, got " ++ show v
 
+configIsTrueMaybe :: [String] -> Yaml.Value -> Maybe Bool
+configIsTrueMaybe ps'' = go ps''
+  where
+    go :: [String] -> Yaml.Value -> Maybe Bool
+    go []     v = case v of
+                    Yaml.Bool b -> Just b
+                    _ -> Nothing
+    go (p:pr) v = case v of
+                    Yaml.Object hm -> case HM.lookup (Text.pack p) hm of
+                      Just v' -> go pr v'
+                      Nothing -> Nothing
+                    _ -> Nothing
+
 configIsEnabledM
   :: MonadMultiReader Config m
   => [String]
   -> m Bool
-configIsEnabledM ps = configIsTrueM $ ps ++ ["enabled"]
+configIsEnabledM ps = configIsEnabled ps `liftM` mAsk
 
 configIsEnabled :: [String] -> Yaml.Value -> Bool
-configIsEnabled ps = configIsTrue $ ps ++ ["enabled"]
+configIsEnabled ps v = fromMaybe False $ configIsTrueMaybe (ps ++ ["enabled"]) v
 
 configReadStringM
   :: MonadMultiReader Config m
