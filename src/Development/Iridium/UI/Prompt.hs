@@ -25,9 +25,6 @@ import           Development.Iridium.Config
 
 import           Control.Monad.Trans.MultiRWS
 
--- well, fuck Turtle, apparently.
--- no way to retrieve stdout, stderr and exitcode.
--- the most generic case, not supported? psshhh.
 import           System.Process
 import           System.IO ( hFlush, stdout )
 import           Control.Concurrent ( threadDelay )
