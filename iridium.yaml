@@ -5,7 +5,8 @@ setup:
   # This currently only checks that uploads happen to that remote,
   # it does not change the remote if a different one is configured.
   # (because that would require modifying `.cabal/config`,)
-  remote-server: http://127.0.0.1:8080
+  # remote-server: http://127.0.0.1:8080
+  remote-server: http://hackage.haskell.org
 
 process:
   dry-run: False # only run all checks/tests, omit any side-effects/uploading
