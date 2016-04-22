@@ -1,5 +1,10 @@
 # Revision history for iridium
 
+## 0.1.5.3  -- 2016-04-22
+
+  * Include `cabal update` invocation by default
+  * Add warning for missing remote version
+
 ## 0.1.5.2  -- 2016-03-11
 
   * Improve stackage upper-bound check error output
