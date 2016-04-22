@@ -208,7 +208,9 @@ remoteVersion = boolToError
   localVersion <- askPackageVersion
   -- pushLog LogLevelDebug $ show $ _i_remote_version infos
   case _i_remote_version infos of
-    Nothing -> return True
+    Nothing -> do
+      pushLog LogLevelWarn $ "no remote version detected. This is harmless if the package is not on hackage yet."
+      return True
     Just remoteVers ->
       if localVersion == remoteVers
         then do
