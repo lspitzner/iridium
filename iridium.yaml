@@ -24,6 +24,8 @@ process:
   # confirm-on-error   only ask for confirmation if there are errors.
   confirmation: confirm-always
 
+  run-cabal-update: True
+
 checks:
   hlint:
     enabled: False

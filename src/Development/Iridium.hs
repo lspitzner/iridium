@@ -30,6 +30,7 @@ import           Data.Proxy
 import           Data.Tagged
 import           Data.List
 import           Data.HList.HList
+import           Data.Maybe
 
 import           Data.HList.ContainsType
 
@@ -216,6 +217,9 @@ iridiumMain argConfig = do
   withMultiReader mergedConfig $ do
     infos <- retrieveInfos
     withMultiReader infos $ withMultiStateA initCheckState $ do
+      runCabalUpdate <- fromMaybe True `liftM` configIsTrueMaybeM ["setup", "run-cabal-update"]
+      when runCabalUpdate $ do
+        runCommandSuccessCabal ["update"]
       runChecks
       displaySetting      <- configIsTrueM     ["process", "print-summary"]
       existWarnings <- liftM ((/=0) . _check_warningCount) mGet

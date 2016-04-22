@@ -29,6 +29,11 @@ setup:
     (because that would require modifying `.cabal/config`,)'
   remote-server: http://hackage.haskell.org
 
+  run-cabal-update: True
+  run-cabal-update-help: ! 'Execute cabal update before performing any checks.
+    Useful when running the stackage upper bounds check, which may erroneously
+    report errors if your cabal package index is not up to date.'
+
 process:
   dry-run-help: |
     only run all checks/tests, omit any side-effects/uploading

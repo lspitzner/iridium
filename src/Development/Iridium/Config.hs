@@ -2,6 +2,8 @@ module Development.Iridium.Config
   ( parseConfigs
   , configIsTrue
   , configIsTrueM
+  , configIsTrueMaybe
+  , configIsTrueMaybeM
   , configIsEnabled
   , configIsEnabledM
   , configReadString
@@ -239,6 +241,12 @@ configIsTrueMaybe ps'' = go ps''
                       Just v' -> go pr v'
                       Nothing -> Nothing
                     _ -> Nothing
+
+configIsTrueMaybeM
+  :: MonadMultiReader Config m
+  => [String]
+  -> m (Maybe Bool)
+configIsTrueMaybeM ps = configIsTrueMaybe ps `liftM` mAsk
 
 configIsEnabledM
   :: MonadMultiReader Config m
