@@ -1,5 +1,9 @@
 # Revision history for iridium
 
+## 0.1.5.4  -- 2016-05-21
+
+  * Fix git branch parsing issue
+
 ## 0.1.5.3  -- 2016-04-22
 
   * Include `cabal update` invocation by default
