@@ -75,7 +75,6 @@ library {
     , turtle                 >=1.2.5    && <1.3
     , text                   >=1.2.2.0  && <1.3
     , containers             >=0.5.5.1  && <0.6
-    , unsafe                 >=0.0      && <0.1
     , transformers           >=0.3.0.0  && <0.5
     , system-filepath        >=0.4.13.4 && <0.5
     , unordered-containers   >=0.2.5.1  && <0.3

@@ -16,7 +16,6 @@ where
 
 
 
-import qualified System.Unsafe as Unsafe
 import           Data.IORef
 import           Control.Monad
 import           Control.Monad.IO.Class
