@@ -32,12 +32,14 @@ data GitImpl = GitImpl
 instance Repo GitImpl where
   repo_retrieveInfo = do
     branchStringRaw <- runCommandStdOut "git" ["branch"]
-    case branchStringRaw of
-      ('*':' ':branchName) ->
-        return $ GitImpl $ takeWhile (`notElem` "\n\r") branchName
-      _ -> do
+    let branchNamePred ('*':' ':branchName) = Just branchName
+        branchNamePred _ = Nothing
+    case firstJust branchNamePred $ lines branchStringRaw of
+      Nothing -> do
         pushLog LogLevelError "Could not parse current git branch name."
         mzero
+      Just branchName ->
+        return $ GitImpl $ branchName
   repo_runChecks _git = withStack "[git]" $ do
     pushLog LogLevelPrint "[git]"
     withIndentation $ do
