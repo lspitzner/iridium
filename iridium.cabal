@@ -79,7 +79,7 @@ library {
     , system-filepath        >=0.4.13.4 && <0.5
     , unordered-containers   >=0.2.5.1  && <0.3
     , multistate             >=0.7.0.0  && <0.8
-    , Cabal                  >=1.22.5.0 && <1.23
+    , Cabal                  >=1.22.5.0 && <1.25
     , http-conduit           >=2.1.8    && <2.2
     , xmlhtml                >=0.2.3.4  && <0.3
     , foldl                  >=1.1.5    && <1.3
