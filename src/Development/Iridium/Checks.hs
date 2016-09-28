@@ -123,7 +123,8 @@ changelog = boolToWarning
     else do
       changelogContentLines <- Turtle.fold (Turtle.input path) Foldl.list
       currentVersionStr <- liftM showVersion askPackageVersion
-      if any (Text.pack currentVersionStr `Text.isInfixOf`) changelogContentLines
+      if any (Text.pack currentVersionStr `Text.isInfixOf`)
+             changelogContentLines
         then return True
         else do
           pushLog LogLevelError $ "changelog does not contain " ++ currentVersionStr
@@ -265,9 +266,10 @@ compile = withStack "basic compilation" $ boolToError $ do
           let testsArg = ["--enable-tests" | testsEnabled]
           let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
                        ++ ["--ghc-options=\"-w\"" | not werror]
+          withDefaultCompiler <- createDefaultCompilerFlag
           runCommandSuccessCabal ["clean"]
-          runCommandSuccessCabal $ ["install", "--dep"] ++ testsArg
-          runCommandSuccessCabal $ ["configure"] ++ testsArg ++ werrorArg
+          runCommandSuccessCabal $ ["install"] ++ withDefaultCompiler ++ ["--dep"] ++ testsArg
+          runCommandSuccessCabal $ ["configure"] ++ withDefaultCompiler ++ testsArg ++ werrorArg
           runCommandSuccessCabal ["build"]
           when testsEnabled $
             runCommandSuccessCabal ["test"]
@@ -292,10 +294,11 @@ documentation = boolToError
   case buildtool of
     "cabal" ->
       mzeroToFalse $ do
-        runCommandSuccessCabal ["clean"]
-        runCommandSuccessCabal ["install", "--dep"]
-        runCommandSuccessCabal ["configure"]
-        runCommandSuccessCabal ["haddock"]
+        withDefaultCompiler <- createDefaultCompilerFlag
+        runCommandSuccessCabal $ ["clean"]
+        runCommandSuccessCabal $ ["install", "--dep"] ++ withDefaultCompiler
+        runCommandSuccessCabal $ ["configure"] ++ withDefaultCompiler
+        runCommandSuccessCabal $ ["haddock"]
     "stack" -> do
       pushLog LogLevelError "TODO: stack build"
       return False
@@ -328,23 +331,22 @@ compileVersions = withStack "compiler checks" $ do
                          ++ "-"
                          ++ configReadString ["version"] val
           let checkBaseName = "Checking with compiler " ++ compilerStr
-          withStack compilerStr $
-            if warningsEnabled
-              then
-                fallbackCheck
-                  (do
-                    b <- runCheck checkBaseName $ checks compilerStr True
-                    unless b $ do
-                      incWarningCounter
-                      addNotWallClean compilerStr
-                    return b
-                  )
-                  (do
-                    pushLog LogLevelPrint "Falling back on compilation without warnings."
-                    runCheck (checkBaseName ++ " -w") $ checks compilerStr False
-                  )
-              else
-                runCheck checkBaseName $ checks compilerStr False
+          withStack compilerStr $ if warningsEnabled
+            then
+              fallbackCheck
+                (do
+                  b <- runCheck checkBaseName $ checks compilerStr True
+                  unless b $ do
+                    incWarningCounter
+                    addNotWallClean compilerStr
+                  return b
+                )
+                (do
+                  pushLog LogLevelPrint "Falling back on compilation without warnings."
+                  runCheck (checkBaseName ++ " -w") $ checks compilerStr False
+                )
+            else
+              runCheck checkBaseName $ checks compilerStr False
 
     where
       checks :: String -> Bool -> m Bool
@@ -417,7 +419,8 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
             liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
             let testsArg = ["--enable-tests" | testsEnabled]
             runCommandSuccessCabal ["clean"]
-            runCommandSuccessCabal $ ["--no-require-sandbox", "--ignore-sandbox", "install", "--dep", "--global", "--dry-run"] ++ testsArg
+            withDefaultCompiler <- createDefaultCompilerFlag
+            runCommandSuccessCabal $ ["--no-require-sandbox", "--ignore-sandbox", "install", "--dep", "--global", "--dry-run"] ++ withDefaultCompiler ++ testsArg
           pushLog LogLevelInfo $ "Cleanup (cabal.config)"
           unless alreadyExists $ Turtle.rm cabalConfigPath
           when alreadyExists $ Turtle.mv cabalConfigBackupPath cabalConfigPath
@@ -503,7 +506,8 @@ packageSDist = withStack "package sdist" $ boolToError $ do
       "cabal" -> mzeroToFalse $ do
         runCommandSuccessCabal ["sdist"]
         let sdistName = pName ++ "-" ++ currentVersionStr ++ ".tar.gz"
-        runCommandSuccessCabal ["install", "dist/" ++ sdistName]
+        withDefaultCompiler <- createDefaultCompilerFlag
+        runCommandSuccessCabal $ ["install", "dist/" ++ sdistName] ++ withDefaultCompiler
       "stack" -> do
         pushLog LogLevelError "TODO: stack upper bound check"
         mzero

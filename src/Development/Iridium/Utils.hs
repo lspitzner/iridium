@@ -7,6 +7,7 @@ module Development.Iridium.Utils
   ( askAllBuildInfo
   , askPackageName
   , askPackageVersion
+  , createDefaultCompilerFlag
   , mzeroToFalse
   , falseToMZero
   , runCheck
@@ -113,6 +114,13 @@ askPackageVersion :: MonadMultiReader Infos m => m Version
 askPackageVersion = do
   Infos _ pDesc _ _ <- mAsk
   return $ pkgVersion $ package $ packageDescription pDesc
+
+createDefaultCompilerFlag :: MonadMultiReader Config m => m [String]
+createDefaultCompilerFlag = liftM maybeToList $ runMaybeT $ do
+  comp <- MaybeT $ configReadStringMaybeM ["setup", "default-compiler"]
+  let confList = ["setup", "compiler-paths", comp]
+  compilerPath <- MaybeT $ configReadStringMaybeM confList
+  return $ "-w" ++ compilerPath
 
 mzeroToFalse :: Monad m => MaybeT m a -> m Bool
 mzeroToFalse m = do

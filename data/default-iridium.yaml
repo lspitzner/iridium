@@ -8,6 +8,8 @@
 #   compiler-paths:
 #     ghc-7.10.3: /opt/ghc-7.10.3/bin/ghc
 #     ghc-7.8.4:  /opt/ghc-7.8.4/bin/ghc
+#
+#   default-compiler: ghc-7.10.3
 # 
 #   hackage:
 #     username: user

@@ -55,8 +55,8 @@ checks:
     compilers:
       - compiler: ghc
         version: 7.8.4
-      # - compiler: ghc
-      #   version: 7.10.3
+      - compiler: ghc
+        version: 7.10.3
   documentation:
     enabled: True
 
