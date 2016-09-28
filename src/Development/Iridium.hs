@@ -23,7 +23,7 @@ import           Control.Monad.Trans.Class
 import           Control.Monad.IO.Class
 import           Control.Monad
 import           Text.Read ( readMaybe )
-import           Control.Monad.Extra ( whenM )
+import           Control.Monad.Extra ( whenM, unlessM )
 import           Control.Monad.Trans.MultiRWS
 import           Control.Monad.Trans.Control
 import           Data.Proxy
@@ -143,7 +143,7 @@ runChecks = do
   whenM (configIsEnabledM ["checks", "documentation"])      $ Checks.documentation
   -- we do this last so that we return in an "everything is compiled" state,
   -- if possible.
-  Checks.compile
+  unlessM (configIsEnabledM ["checks", "compiler-versions"]) $ Checks.compile
   whenM (configIsEnabledM ["checks", "hlint"])                Checks.hlint
   whenM (configIsEnabledM ["checks", "lower-bounds-exist"]) $ Checks.lowerBounds
   whenM (configIsEnabledM ["checks", "upper-bounds-exist"]) $ Checks.upperBounds
