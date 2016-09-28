@@ -1,5 +1,10 @@
 # Revision history for iridium
 
+## 0.1.5.5  -- 2016-09-28
+
+  * Slight improvements around the handling of testing against multiple
+    compiler versions
+
 ## 0.1.5.4  -- 2016-05-21
 
   * Fix git branch parsing issue
