@@ -8,6 +8,10 @@
 iridium is a fancy wrapper around `cabal upload`. It aims to automate
 several typical steps when releasing a new package version to hackage.
 
+Iridium does all testing locally, in contrast to e.g. github's travis.
+This makes it easier to keep your published history free of commits that
+fail any tests (without squashing or separate branches).
+
 Steps currently include:
 
 - Compilation and running tests using multiple compiler versions.
@@ -20,11 +24,9 @@ Steps currently include:
 
 - Uploading of both the package itself and the documentation.
 
-iridium does all testing locally, in contrast to e.g. github's travis. 
-
 The output on errors is certainly not optimal; for example the stackage
-upper bound checking will print a typical, hard-to-consume cabal hell error
-message. iridium's aim is only to note _if_ something is wrong.
+upper bound checking will print a typical, hard-to-consume cabal error
+message. iridium's focus is on notifying _if_ something is wrong.
 
 # Usage
 
