@@ -92,7 +92,7 @@ retrieveInfos = do
           pushLog LogLevelError "Error: Found more than one cabal package file!"
           mzero
     pushLog LogLevelInfo $ "Reading cabal package description " ++ encodeString packageFile
-    content <- Text.unlines `liftM` Turtle.fold (Turtle.input packageFile) Foldl.list
+    content <- Turtle.linesToText `liftM` Turtle.fold (Turtle.input packageFile) Foldl.list
     -- pushLog LogLevelDebug $ Text.unpack content
     let parseResult = parsePackageDescription $ Text.unpack content
     case parseResult of
@@ -130,7 +130,6 @@ retrieveInfos = do
 runChecks
   :: ( MonadIO m0
      , MonadPlus m0
-     , MonadBaseControl IO m0
      , ContainsType LogState s
      , ContainsType CheckState s
      , ContainsType Config r
@@ -155,7 +154,6 @@ runChecks = do
 
 displaySummary
   :: ( MonadIO m
-     , MonadPlus m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
      , MonadMultiReader Config m
@@ -199,7 +197,6 @@ displaySummary = do
 askGlobalConfirmation
   :: ( MonadIO m
      , MonadPlus m
-     , MonadMultiReader Config m
      )
   => Bool
   -> m ()

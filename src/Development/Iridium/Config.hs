@@ -135,10 +135,12 @@ writeConfigToFile path config =
       = error "Null"
 
 determineConfFromStuff
-  :: ( MonadIO m
-     , MonadMultiState LogState m
-     )
-  => m Config
+  :: -- ( MonadIO m
+     -- , MonadMultiState LogState m
+     -- )
+     Monad m
+  => 
+     m Config
 determineConfFromStuff = do
   return $ Yaml.Object $ HM.empty -- TODO
 

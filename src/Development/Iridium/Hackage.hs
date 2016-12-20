@@ -130,7 +130,6 @@ uploadDocs
    . ( MonadIO m
      , MonadPlus m
      , MonadMultiReader Config m
-     , MonadMultiReader Infos m
      , MonadMultiState LogState m
      )
   => m ()

@@ -1,5 +1,10 @@
 # Revision history for iridium
 
+## 0.1.5.6  -- 2016-09-28
+
+  * Only internal changes (support ghc-8, fix support for ghc-7.8;
+    adapt/switch to turtle-1.3.0)
+
 ## 0.1.5.5  -- 2016-09-28
 
   * Slight improvements around the handling of testing against multiple

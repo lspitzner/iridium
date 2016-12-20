@@ -8,7 +8,6 @@ module Development.Iridium.ExternalProgWrappers
   , runCommandStdOut
   , observeCreateProcessWithExitCode
   , getExternalProgramVersion
-  , readShellProcessWithExitCode
   , runCommandSuccessCabal
   , runCommandSuccessHLint
   )
@@ -51,11 +50,9 @@ import qualified Data.List.Split as Split
 import qualified System.Process as Process
 import qualified Data.Char as Char
 import           Text.Read ( readMaybe )
+import           Data.Text ( Text )
 
--- well, no Turtle, apparently.
--- no way to retrieve stdout, stderr and exitcode.
--- the most generic case, not supported? psshhh.
-import           System.Process hiding ( cwd )
+-- import           System.Process hiding ( cwd )
 
 import           Data.Maybe ( maybeToList )
 
@@ -70,14 +67,14 @@ import           Development.Iridium.Config
 
 
 
-readShellProcessWithExitCode
-  :: String
-  -> [String]
-  -> IO (ExitCode, String, String)
-readShellProcessWithExitCode c ps =
-  readCreateProcessWithExitCode
-    (shell $ c ++ " " ++ intercalate " " (fmap show ps))
-    ""
+-- readShellProcessWithExitCode
+--   :: String
+--   -> [String]
+--   -> IO (ExitCode, String, String)
+-- readShellProcessWithExitCode c ps =
+--   readCreateProcessWithExitCode
+--     (shell $ c ++ " " ++ intercalate " " (fmap show ps))
+--     ""
 
 runCommandSuccess
   :: ( MonadIO m
@@ -107,10 +104,11 @@ runCommandSuccess c ps = falseToMZero $ do
             replaceStackTop l
 
       liftIO $ observeCreateProcessWithExitCode
-        (shell $ c ++ " " ++ intercalate " " (fmap show ps))
+        (Process.shell $ c ++ " " ++ intercalate " " (fmap show ps))
         ""
         handleLine
         handleLine
+
     
     case exitCode of
       ExitSuccess -> do
@@ -150,48 +148,53 @@ runCommandSuccessHLint ps = do
   runCommandSuccess hlintInvoc ps
 
 runCommandStdOut
-  :: ( MonadIO m
-     , MonadPlus m
-     , MonadMultiState LogState m
-     )
+  :: (MonadIO m, MonadPlus m, MonadMultiState LogState m)
   => String
   -> [String]
   -> m String
 runCommandStdOut c ps = do
   let infoStr = c ++ " " ++ intercalate " " ps
-  (exitCode, stdOut, _stdErr) <- liftIO $
-    readShellProcessWithExitCode c ps
+  (exitCode, stdOut, _stdErr) <- liftIO $ Turtle.procStrictWithErr
+    (Text.pack c)
+    (Text.pack `fmap` ps)
+    Control.Applicative.empty
   case exitCode of
     ExitFailure _ -> do
       pushLog LogLevelError $ "Error running command `" ++ infoStr ++ "`."
       mzero
-    ExitSuccess -> do
-      return stdOut
+    ExitSuccess   -> do
+      return (Text.unpack stdOut)
 
 getExternalProgramVersion
-  :: ( MonadIO m
-     , MonadPlus m
-     , MonadMultiState LogState m
-     )
-  => String
-  -> m [Int]
+  :: (MonadIO m, MonadPlus m, MonadMultiState LogState m) => String -> m [Int]
 getExternalProgramVersion prog = do
   let err = do
-        pushLog LogLevelError $ "Could not determine version of external program " ++ prog
+        pushLog LogLevelError
+          $  "Could not determine version of external program "
+          ++ prog
         mzero
-  (exitCode, stdOut, _stdErr) <- liftIO $
-    readShellProcessWithExitCode prog ["--version"]
+  (exitCode, stdOut, _stdErr) <- liftIO $ Turtle.procStrictWithErr
+    (Text.pack prog)
+    [Text.pack "--version"]
+    Control.Applicative.empty
   case exitCode of
-    ExitSuccess -> do
-      case lines stdOut of
-        (line:_) -> case takeWhile (`elem` ".0123456789")
-                       $ dropWhile (not . Char.isNumber) line of
-          "" -> err
-          s -> do
-            pushLog LogLevelInfoVerbose $ "detected " ++ prog ++ " version " ++ s
-            case mapM readMaybe $ Split.splitOn "." s of
-              Just vs -> return vs
-              Nothing -> err
+    ExitSuccess   -> do
+      case lines (Text.unpack stdOut) of
+        (line:_) ->
+          case
+              takeWhile (`elem`".0123456789")
+                $ dropWhile (not . Char.isNumber) line
+            of
+              "" -> err
+              s  -> do
+                pushLog LogLevelInfoVerbose
+                  $  "detected "
+                  ++ prog
+                  ++ " version "
+                  ++ s
+                case mapM readMaybe $ Split.splitOn "." s of
+                  Just vs -> return vs
+                  Nothing -> err
         _ -> err
     ExitFailure _ -> err
 
@@ -232,7 +235,7 @@ observeCreateProcessWithExitCode cp input stdoutHandler stderrHandler = do
           -- hClose errh
 
         -- wait on the process
-        ex <- waitForProcess ph
+        ex <- Process.waitForProcess ph
 
         return ex
 
@@ -264,7 +267,7 @@ cleanupProcess :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
                -> IO ()
 cleanupProcess (mb_stdin, mb_stdout, mb_stderr,
                 ph@(ProcessHandle _ delegating_ctlc)) = do
-    terminateProcess ph
+    Process.terminateProcess ph
     -- Note, it's important that other threads that might be reading/writing
     -- these handles also get killed off, since otherwise they might be holding
     -- the handle lock and prevent us from closing, leading to deadlock.
@@ -281,7 +284,7 @@ cleanupProcess (mb_stdin, mb_stdout, mb_stderr,
     -- waitForProcess (which would otherwise end the Ctl-C delegation itself).
     when delegating_ctlc
       stopDelegateControlC
-    _ <- forkIO (waitForProcess (resetCtlcDelegation ph) >> return ())
+    _ <- forkIO (Process.waitForProcess (resetCtlcDelegation ph) >> return ())
     return ()
   where
     resetCtlcDelegation (ProcessHandle m _) = ProcessHandle m False

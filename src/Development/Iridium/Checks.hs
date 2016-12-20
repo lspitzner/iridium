@@ -124,7 +124,7 @@ changelog = boolToWarning
       changelogContentLines <- Turtle.fold (Turtle.input path) Foldl.list
       currentVersionStr <- liftM showVersion askPackageVersion
       if any (Text.pack currentVersionStr `Text.isInfixOf`)
-             changelogContentLines
+             (Turtle.lineToText `fmap` changelogContentLines)
         then return True
         else do
           pushLog LogLevelError $ "changelog does not contain " ++ currentVersionStr
@@ -134,7 +134,6 @@ lowerBounds
   :: ( MonadIO m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
-     , MonadMultiReader Config m
      , MonadMultiReader Infos m
      )
   => m ()
@@ -167,7 +166,6 @@ upperBounds
   :: ( MonadIO m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
-     , MonadMultiReader Config m
      , MonadMultiReader Infos m
      )
   => m ()
@@ -382,7 +380,6 @@ upperBoundsStackage
   :: forall m
    . ( MonadIO m
      , MonadPlus m
-     , MonadBaseControl IO m
      , MonadMultiState LogState m
      , MonadMultiState CheckState m
      , MonadMultiReader Infos m
@@ -457,9 +454,7 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
   fetchCabalConfig
     :: forall m0
      . ( MonadIO m0
-       , MonadPlus m0
        , MonadMultiState LogState m0
-       , MonadMultiReader Infos m0
        )
     => String
     -> m0 ByteString
