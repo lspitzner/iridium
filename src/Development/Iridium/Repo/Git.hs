@@ -62,10 +62,10 @@ instance Repo GitImpl where
           ++ ["Push current branch and tag to upstream repo" | pushEnabled]
   repo_performAction git = do
     tagEnabled <- configIsEnabledM ["repository", "git", "release-tag"]
-    when tagEnabled $ do
+    tagStringMaybe <- if tagEnabled then Just <$> askTagString else pure Nothing
+    tagStringMaybe `forM_` \tagStr -> do
       pushLog LogLevelPrint "[git] Tagging this release."
       withIndentation $ do
-        tagStr <- askTagString
         curOut <- runCommandStdOut "git" ["tag", "-l", tagStr]
         pushLog LogLevelDebug curOut
         if all isSpace curOut
@@ -88,10 +88,9 @@ instance Repo GitImpl where
         mzeroIfNonzero $ liftIO $
           runProcess "git"
                      ( [ "push"
-                       , "--tags"
                        , remote
                        , _git_branchName git
-                       ]
+                       ] ++ maybe [] pure tagStringMaybe
                      )
                      Nothing Nothing Nothing Nothing Nothing
           >>= waitForProcess
