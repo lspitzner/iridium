@@ -1,5 +1,10 @@
 # Revision history for iridium
 
+## 0.1.5.7  -- 2017-08-01
+
+  * Adapt for cabal-2.0 - Note that this is a breaking change; uploading with
+    cabal-1.* will not work with this version.
+
 ## 0.1.5.6  -- 2016-09-28
 
   * Only internal changes (support ghc-8, fix support for ghc-7.8;
