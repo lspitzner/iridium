@@ -5,7 +5,7 @@ where
 
 
 
-import           Control.Monad
+import           Control.Monad (when, mzero, liftM, MonadPlus)
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Class
 import           Control.Monad.IO.Class
@@ -15,6 +15,7 @@ import           Data.List.Extra
 import           Data.Version
 import           System.Process hiding ( cwd )
 import           Data.Char
+import           Data.Foldable (forM_)
 
 import           Development.Iridium.Types
 import           Development.Iridium.Utils
@@ -62,7 +63,7 @@ instance Repo GitImpl where
           ++ ["Push current branch and tag to upstream repo" | pushEnabled]
   repo_performAction git = do
     tagEnabled <- configIsEnabledM ["repository", "git", "release-tag"]
-    tagStringMaybe <- if tagEnabled then Just <$> askTagString else pure Nothing
+    tagStringMaybe <- if tagEnabled then liftM Just askTagString else return Nothing
     tagStringMaybe `forM_` \tagStr -> do
       pushLog LogLevelPrint "[git] Tagging this release."
       withIndentation $ do
@@ -90,7 +91,7 @@ instance Repo GitImpl where
                      ( [ "push"
                        , remote
                        , _git_branchName git
-                       ] ++ maybe [] pure tagStringMaybe
+                       ] ++ maybe [] return tagStringMaybe
                      )
                      Nothing Nothing Nothing Nothing Nothing
           >>= waitForProcess
