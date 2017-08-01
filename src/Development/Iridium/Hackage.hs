@@ -112,6 +112,7 @@ uploadPackage = do
       mzeroIfNonzero $ liftIO $
         runProcess "cabal"
                    ( [ "upload"
+                     , "--publish"
                      , filePath
                      ]
                    ++ ["-u" ++ u | u <- maybeToList username]
