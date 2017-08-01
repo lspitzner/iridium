@@ -1,10 +1,10 @@
 name:                iridium
-version:             0.1.5.6
+version:             0.1.5.7
 synopsis:            Automated Local Cabal Package Testing and Uploading
 license:             BSD3
 license-file:        LICENSE
 author:              Lennart Spitzner
-maintainer:          lsp@informatik.uni-kiel.de
+maintainer:          Lennart Spitzner <hexagoxel@hexagoxel.de>
 copyright:           Copyright (C) 2016 Lennart Spitzner
 Homepage:            https://github.com/lspitzner/iridium
 Bug-reports:         https://github.com/lspitzner/iridium/issues
