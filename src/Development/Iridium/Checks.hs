@@ -74,6 +74,9 @@ packageCheck = do
     "cabal" -> boolToError $ runCheck "Checking package validity" $ do
       mzeroToFalse $
         runCommandSuccessCabal ["check"]
+    "cabal-new" -> boolToError $ runCheck "Checking package validity" $ do
+      mzeroToFalse $
+        runCommandSuccessCabal ["check"]
     "stack" -> do
       -- stack has no "check".
       -- and no "upload --dry-run either."
@@ -272,10 +275,12 @@ compile = withStack "basic compilation" $ boolToError $ do
           when testsEnabled $
             runCommandSuccessCabal ["test"]
           return True
+      "cabal-new" ->
+        error "compile not supported in cabal-new"
       "stack" -> do
         pushLog LogLevelError "TODO: stack build"
         mzero
-      _ -> mzero
+      _ -> error "strange buildtool"
 
 documentation
   :: ( MonadIO m
@@ -297,10 +302,12 @@ documentation = boolToError
         runCommandSuccessCabal $ ["install", "--dep"] ++ withDefaultCompiler
         runCommandSuccessCabal $ ["configure"] ++ withDefaultCompiler
         runCommandSuccessCabal $ ["haddock"]
+    "cabal-new" ->
+      error "documentation not supported with cabal-new!"
     "stack" -> do
       pushLog LogLevelError "TODO: stack build"
       return False
-    _ -> error "lkajsdlkjasd"
+    _ -> error "strange buildtool"
 
 compileVersions
   :: forall m
@@ -370,10 +377,25 @@ compileVersions = withStack "compiler checks" $ do
             runCommandSuccessCabal ["build"]
             when testsEnabled $
               runCommandSuccessCabal ["test"]
+        "cabal-new" -> do
+          let confList = ["setup", "compiler-paths", compilerStr]
+          compilerPathMaybe <- configReadStringMaybeM confList
+          compilerPath <- case compilerPathMaybe of
+            Nothing -> do
+              pushLog LogLevelError $ "Expected string in config for " ++ show confList
+              mzero
+            Just x -> return x
+          mzeroToFalse $ do
+            let testsArg = ["--enable-tests" | testsEnabled]
+            Turtle.rmtree (Turtle.fromString "dist-newstyle/cache")
+            runCommandSuccessCabal $ ["new-build", "--project-file=cabal.project." ++ compilerStr]
+                                     ++ testsArg
+            when testsEnabled $
+              runCommandSuccessCabal $ ["new-test", "-w" ++ compilerPath] ++ testsArg
         "stack" -> do
           pushLog LogLevelError "TODO: stack build"
           mzero
-        _ -> mzero
+        _ -> error "strange buildtool"
   }
 
 upperBoundsStackage
@@ -448,7 +470,7 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
       "stack" -> do
         pushLog LogLevelError "TODO: stack upper bound check"
         mzero
-      _ -> mzero
+      _ -> error "strange buildtool"
  
  where
   fetchCabalConfig
@@ -503,7 +525,12 @@ packageSDist = withStack "package sdist" $ boolToError $ do
         let sdistName = pName ++ "-" ++ currentVersionStr ++ ".tar.gz"
         withDefaultCompiler <- createDefaultCompilerFlag
         runCommandSuccessCabal $ ["install", "dist/" ++ sdistName] ++ withDefaultCompiler
+      "cabal-new" -> error "not supported in cabal-new"
+        -- mzeroToFalse $ do
+        -- runCommandSuccessCabal ["sdist"]
+        -- Turtle.rmtree (Turtle.fromString "dist-newstyle/cache")
+        -- runCommandSuccessCabal $ ["new-build", "--project-file=cabal.project.disttest"]
       "stack" -> do
         pushLog LogLevelError "TODO: stack upper bound check"
         mzero
-      _ -> mzero
+      _ -> error "strange buildtool"

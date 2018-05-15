@@ -121,6 +121,28 @@ uploadPackage = do
                    Nothing Nothing Nothing Nothing Nothing
         >>= waitForProcess
       pushLog LogLevelPrint "Upload successful."
+    "cabal-new" -> do
+      (PackageName pname) <- askPackageName
+      pvers <- askPackageVersion
+      username <- configReadStringMaybeM ["setup", "hackage", "username"]
+      password <- configReadStringMaybeM ["setup", "hackage", "password"]
+
+      let filePath = "dist/" ++ pname ++ "-" ++ showVersion pvers ++ ".tar.gz"
+      mzeroIfNonzero $ liftIO $
+        runProcess "cabal" ["sdist"] Nothing Nothing Nothing Nothing Nothing
+        >>= waitForProcess
+      mzeroIfNonzero $ liftIO $
+        runProcess "cabal"
+                   ( [ "upload"
+                     , "--publish"
+                     , filePath
+                     ]
+                   ++ ["-u" ++ u | u <- maybeToList username]
+                   ++ ["-p" ++ p | p <- maybeToList password]
+                   )
+                   Nothing Nothing Nothing Nothing Nothing
+        >>= waitForProcess
+      pushLog LogLevelPrint "Upload successful."
     "stack" -> do
       pushLog LogLevelError "TODO: stack upload"
       mzero
@@ -146,6 +168,7 @@ uploadDocs = do
         runProcess "cabal"
                    ( [ "upload"
                      , "--doc"
+                     , "--publish"
                      ]
                    ++ ["-u" ++ u | u <- maybeToList username]
                    ++ ["-p" ++ p | p <- maybeToList password]
@@ -157,4 +180,4 @@ uploadDocs = do
     "stack" -> do
       pushLog LogLevelError "TODO: stack upload"
       mzero
-    _ -> mzero
+    _ -> error "uploadDocs not supported in cabal-new"

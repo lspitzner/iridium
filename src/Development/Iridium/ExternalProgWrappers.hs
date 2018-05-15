@@ -87,6 +87,7 @@ runCommandSuccess
   -> m ()
 runCommandSuccess c ps = falseToMZero $ do
   let infoStr = c ++ " " ++ intercalate " " ps
+  pushLog LogLevelInfo $ infoStr
   withStack infoStr $ do
     outListRef <- liftIO $ newIORef []
     exitCode <- withStack "" $ do -- the additional stack elem is for
@@ -112,7 +113,6 @@ runCommandSuccess c ps = falseToMZero $ do
     
     case exitCode of
       ExitSuccess -> do
-        pushLog LogLevelInfo $ infoStr
         return True
       ExitFailure _ -> do
         pushLog LogLevelPrint infoStr
