@@ -6,8 +6,11 @@
 *.ps
 /*.pdf
 dist
+dist-newstyle
 .cabal-sandbox/
 .stack-work/
 cabal.sandbox.config
+cabal.project.local*
+.ghc.environment.*
 **/*.gui~
 \#*.gui\#
