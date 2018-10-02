@@ -1,5 +1,10 @@
 # Revision history for iridium
 
+## 0.1.5.8  -- 2018-10-02
+
+  * Add support for -Wcompat
+  * Reduce dependency footprint by using json endpoint of hackage interface
+
 ## 0.1.5.7  -- 2017-08-01
 
   * Adapt for cabal-2.0 - Note that this is a breaking change; uploading with
