@@ -40,6 +40,7 @@ import           Data.Maybe ( maybeToList )
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString as ByteString
 import           Filesystem.Path.CurrentOS hiding ( null )
+import           Data.List ( isPrefixOf )
 
 import qualified Distribution.Package
 import           Distribution.Version
@@ -261,16 +262,22 @@ compile = withStack "basic compilation" $ boolToError $ do
   checks werror = do
     buildtool <- configReadStringM ["setup", "buildtool"]
     testsEnabled <- configIsEnabledM ["checks", "testsuites"]
+    shouldCompat <- do
+      c <- configIsTrueMaybeM ["checks", "compiler-warnings", "enable-compat"]
+      pure $ fromMaybe False c
     case buildtool of
       "cabal" ->
         mzeroToFalse $ do
           let testsArg = ["--enable-tests" | testsEnabled]
           let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
                        ++ ["--ghc-options=\"-w\"" | not werror]
+          let wcompatArg = if shouldCompat
+                then ["--ghc-options=\"-Wcompat\""]
+                else []
           withDefaultCompiler <- createDefaultCompilerFlag
           runCommandSuccessCabal ["clean"]
           runCommandSuccessCabal $ ["install"] ++ withDefaultCompiler ++ ["--dep"] ++ testsArg
-          runCommandSuccessCabal $ ["configure"] ++ withDefaultCompiler ++ testsArg ++ werrorArg
+          runCommandSuccessCabal $ ["configure"] ++ withDefaultCompiler ++ testsArg ++ werrorArg ++ wcompatArg
           runCommandSuccessCabal ["build"]
           when testsEnabled $
             runCommandSuccessCabal ["test"]
@@ -364,16 +371,25 @@ compileVersions = withStack "compiler checks" $ do
               pushLog LogLevelError $ "Expected string in config for " ++ show confList
               mzero
             Just x -> return x
+          shouldCompat <- do
+            c <- configIsTrueMaybeM ["checks", "compiler-warnings", "enable-compat"]
+            pure $ case c of
+              Just True -> not $ ("ghc-7" `isPrefixOf` compilerStr)
+              _ -> False
           mzeroToFalse $ do
             let testsArg = ["--enable-tests" | testsEnabled]
             let werrorArg = ["--ghc-options=\"-Werror\"" | werror]
                          ++ ["--ghc-options=\"-w\"" | not werror]
+            let wcompatArg = if shouldCompat
+                  then ["--ghc-options=\"-Wcompat\""]
+                  else []
             runCommandSuccessCabal ["clean"]
             runCommandSuccessCabal $ ["install", "--dep", "-w" ++ compilerPath]
                                      ++ testsArg
             runCommandSuccessCabal $ ["configure", "-w" ++ compilerPath]
                                      ++ testsArg
                                      ++ werrorArg
+                                     ++ wcompatArg
             runCommandSuccessCabal ["build"]
             when testsEnabled $
               runCommandSuccessCabal ["test"]
