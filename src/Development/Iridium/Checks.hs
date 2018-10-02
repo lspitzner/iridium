@@ -21,7 +21,7 @@ import qualified Data.Text            as Text
 import qualified Data.Text.IO         as Text.IO
 import qualified Turtle               as Turtle
 import qualified Control.Foldl        as Foldl
-import qualified Network.HTTP.Conduit as HTTP
+import qualified Network.HTTP         as HTTP
 import qualified Data.ByteString      as ByteString
 import qualified Data.ByteString.Lazy as ByteStringL
 
@@ -36,7 +36,7 @@ import           Control.Monad.Trans.MultiRWS
 import           Data.Text ( Text )
 import           Data.Text.Encoding
 import           Distribution.PackageDescription
-import           Data.Maybe ( maybeToList )
+import           Data.Maybe ( maybeToList, fromMaybe )
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString as ByteString
 import           Filesystem.Path.CurrentOS hiding ( null )
@@ -448,8 +448,7 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
             cabalConfigContents <- fetchCabalConfig urlStr
             pName <- liftM (Text.pack . (\(Distribution.Package.PackageName n) -> n)) askPackageName
             let filteredLines = filter (not . (pName `Text.isInfixOf`))
-                              $ Text.lines
-                              $ decodeUtf8 cabalConfigContents
+                              $ Text.lines cabalConfigContents
             -- pushLog LogLevelDebug $ "Writing n lines to cabal.config: " ++ show (length filteredLines)
             liftIO $ Text.IO.writeFile (encodeString cabalConfigPath) (Text.unlines filteredLines)
             let testsArg = ["--enable-tests" | testsEnabled]
@@ -493,14 +492,20 @@ upperBoundsStackage = withStack "stackage upper bound" $ boolToError $ do
     :: forall m0
      . ( MonadIO m0
        , MonadMultiState LogState m0
+       , MonadPlus m0
        )
     => String
-    -> m0 ByteString
+    -> m0 Text
   fetchCabalConfig urlStr = do
     pushLog LogLevelInfoVerbose $ "Fetching up-to-date cabal.config from " ++ urlStr
     -- TODO: exception handling
-    r <- HTTP.simpleHttp urlStr
-    return $ ByteString.concat $ ByteStringL.toChunks $ r
+    e <- liftIO $ HTTP.simpleHTTP (HTTP.getRequest urlStr)
+    case e of
+      Left err -> do
+        pushLog LogLevelError
+          $ "Error: failed fetching stackage cabal.config! " ++ show err
+        mzero
+      Right r -> return $ Text.pack $ HTTP.rspBody r
     -- url <- case URI.parseURI urlStr of
     --   Nothing -> do
     --     pushLog LogLevelError "bad URI"

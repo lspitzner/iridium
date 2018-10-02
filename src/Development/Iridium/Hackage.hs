@@ -19,9 +19,13 @@ import           Distribution.Package ( PackageName(..) )
 import qualified Turtle                 as Turtle
 import           System.Exit
 
-import qualified Network.HTTP.Conduit   as HTTP
-import qualified Text.XmlHtml           as Html
+import qualified Network.HTTP           as HTTP
+import qualified Network.URI            as URI
 import qualified Data.Text              as Text
+import qualified Data.Aeson             as Aeson
+import qualified Data.HashMap.Strict    as HM
+import qualified Text.ParserCombinators.ReadP as ReadP
+import           Data.List (find)
 
 import           System.Process hiding ( cwd )
 
@@ -40,51 +44,38 @@ retrieveLatestVersion
      , MonadMultiState LogState m
      , MonadPlus m
      )
-  => String -> String -> m (Maybe String)
+  => String -> String -> m (Maybe Version)
 retrieveLatestVersion remoteUrl pkgName = do
   let urlStr :: String = remoteUrl ++ "/package/" ++ pkgName ++ "/preferred"
   pushLog LogLevelInfo $ "Looking up latest version from hackage via url " ++ urlStr
-  -- url <- case URI.parseURI urlStr of
-  --   Nothing -> do
-  --     pushLog LogLevelError "bad URI"
-  --     mzero
-  --   Just u -> return u
-  -- result <- liftIO $ HTTP.simpleHTTP (HTTP.mkRequest HTTP.GET url)
-  -- rawHtml <- case result of
-  --   Left _ -> do
-  --     pushLog LogLevelError "Error: Could not retrieve hackage version"
-  --     mzero
-  --   Right x -> return $ HTTP.rspBody x
 
-  -- TODO: error handling
+  uri <- case URI.parseURI urlStr of
+    Nothing -> do
+      pushLog LogLevelError "bad URI"
+      mzero
+    Just u -> return u
+  let request = HTTP.insertHeader HTTP.HdrAccept "application/json"
+        $ HTTP.mkRequest HTTP.GET uri
 
-  rawHtmlE <- liftIO $ try $ HTTP.simpleHttp urlStr
-  case rawHtmlE of
-    Left (_::HTTP.HttpException) -> return Nothing
-    Right rawHtml -> case Html.parseHTML "hackage:response"
-                        $ ByteString.concat
-                        $ ByteStringL.toChunks rawHtml of
-      Left e -> do
-        pushLog LogLevelError e
+  rawHtmlE <- liftIO $ HTTP.simpleHTTP request
+  let parseError = do
+        pushLog LogLevelError "Could not decode hackage response."
         mzero
-      Right x -> do
-        let mStr  = fmap (Text.unpack . Html.nodeText)
-                  $ ( listToMaybe . Html.childNodes )
-                =<< listToMaybe
-                    ( reverse
-                    $ Html.descendantElementsTag (Text.pack "a")
-                      ( head
-                      $ Html.docContent
-                      $ x
-                      )
-                    )
-        case mStr of
-          Nothing -> do
-            pushLog LogLevelError "Error: Could not decode hackage response."
-            mzero
-          Just s -> do
-            pushLog LogLevelInfoVerbose $ "got: " ++ s
-            return $ Just s
+  case rawHtmlE of
+    Left{} -> return Nothing
+    Right r -> case Aeson.decode $ HTTP.rspBody r of
+      Just m -> case HM.lookup (Text.pack "normal-version") m of
+        Nothing -> parseError
+        Just [] -> pure Nothing
+        Just (vs :: [String]) -> do
+          let v :: Version = maximum $ parseVersionF <$> vs
+          pure $ Just v
+      Nothing -> parseError
+ where
+  parseVersionF s = case find (null . snd) $ ReadP.readP_to_S parseVersion s of
+    Nothing -> error "parseVersionF"
+    Just (v, _) -> v
+
 
 uploadPackage
   :: forall m
